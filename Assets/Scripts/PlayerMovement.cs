@@ -24,6 +24,7 @@ public class PlayerMovement : MonoBehaviour
     private float xVelocity, yVelocity;
     private CharacterController characterController;
     private Vector3 moveDirection = Vector3.zero;
+    private Vector3 velocity; // Solo para el eje Y
     private bool isGrounded;
     private Vector2 moveInput;
     public bool isSprinting;
@@ -68,14 +69,20 @@ public class PlayerMovement : MonoBehaviour
     private void Update()
     {
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
-        if (isGrounded && moveDirection.y < 0)
+
+        Debug.Log("IsGrounded: " + isGrounded);
+
+        if (isGrounded && velocity.y < 0)
         {
-            moveDirection.y = -2f;
+            velocity.y = -2f; // Mantener pegado al suelo
             coyoteTimer = coyoteTimeEnabled ? coyoteTimeDuration : 0f;
         }
         else if (coyoteTimeEnabled)
         {
             coyoteTimer -= Time.deltaTime;
+        }else
+        {
+            velocity.y -= gravity * Time.deltaTime;
         }
 
         HandleLook();
@@ -113,39 +120,29 @@ public class PlayerMovement : MonoBehaviour
         moveInput = moveInputRaw.normalized;
 
         bool sprintInput = inputActions.Player.Sprint.IsPressed();
-        //if (sprintInput) Debug.Log("Sprint input detected");
         isSprinting = canSprint && sprintInput && moveInput.y > 0.1f && isGrounded && !isCrouching && !isSliding;
 
         float currentSpeed = isCrouching ? crouchSpeed : (isSprinting ? sprintSpeed : walkSpeed);
         if (!isMove) currentSpeed = 0f;
 
+        Debug.Log("moveInput: " + moveInput);
+
         Vector3 direction = new Vector3(moveInput.x, 0f, moveInput.y);
         Vector3 moveVector = transform.TransformDirection(direction) * currentSpeed;
 
-        Debug.Log("isGrounded: " + isGrounded);
-
-        if (isGrounded || coyoteTimer > 0f)
+        // --- SALTO ---
+        if ((isGrounded || coyoteTimer > 0f) && canJump && inputActions.Player.Jump.WasPressedThisFrame() && !isSliding)
         {
-            if (canJump && inputActions.Player.Jump.WasPressedThisFrame() && !isSliding)
-            {
-                moveDirection.y = jumpSpeed;
-                Debug.Log("Jump!");
-            }
-            else if (moveDirection.y < 0)
-            {
-                moveDirection.y = -2f;
-            }
-        }
-        else
-        {
-            moveDirection.y -= gravity * Time.deltaTime;
+            velocity.y = jumpSpeed;
+            Debug.Log("Jump!");
         }
 
-        if (!isSliding)
-        {
-            moveDirection = new Vector3(moveVector.x, moveDirection.y, moveVector.z);
-            characterController.Move(moveDirection * Time.deltaTime);
-        }
+        // --- GRAVEDAD ---
+        velocity.y -= gravity * Time.deltaTime;
+
+        // --- APLICAR MOVIMIENTO ---
+        Vector3 finalMove = moveVector + new Vector3(0, velocity.y, 0);
+        characterController.Move(finalMove * Time.deltaTime);
     }
     
 }

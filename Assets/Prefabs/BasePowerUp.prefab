@@ -9,6 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4825678189993314239}
+  - component: {fileID: 2777433357764276670}
   m_Layer: 6
   m_Name: BasePowerUp
   m_TagString: Untagged
@@ -34,6 +35,28 @@ Transform:
   - {fileID: 6311173414401489156}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!64 &2777433357764276670
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3485059887611058411}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 0}
 --- !u!1 &7099703409200145561
 GameObject:
   m_ObjectHideFlags: 0
@@ -45,7 +68,7 @@ GameObject:
   - component: {fileID: 7836459944295727610}
   - component: {fileID: 1709693253237000054}
   - component: {fileID: 8299377832436810596}
-  - component: {fileID: 6935445399630705886}
+  - component: {fileID: 6392167092221099138}
   m_Layer: 6
   m_Name: Cube Med
   m_TagString: Untagged
@@ -121,7 +144,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &6935445399630705886
+--- !u!65 &6392167092221099138
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -140,7 +163,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 0.99999994, y: 1, z: 0.99999994}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &7825496121892312219
 GameObject:
@@ -153,7 +176,7 @@ GameObject:
   - component: {fileID: 8839444142859577345}
   - component: {fileID: 8236994165141003795}
   - component: {fileID: 2601816848952376129}
-  - component: {fileID: 1394521073523605689}
+  - component: {fileID: 3175290680151463792}
   m_Layer: 6
   m_Name: Cube Ped
   m_TagString: Untagged
@@ -229,7 +252,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &1394521073523605689
+--- !u!65 &3175290680151463792
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -261,7 +284,7 @@ GameObject:
   - component: {fileID: 6311173414401489156}
   - component: {fileID: 6120043746092169890}
   - component: {fileID: 7968804072969762778}
-  - component: {fileID: 6078362392261126119}
+  - component: {fileID: 2496466482684528094}
   m_Layer: 6
   m_Name: Cube Gran
   m_TagString: Untagged
@@ -337,7 +360,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!65 &6078362392261126119
+--- !u!65 &2496466482684528094
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
