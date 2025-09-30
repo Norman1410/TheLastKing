@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 2475693630833922728}
   - component: {fileID: 5342401641348401600}
   - component: {fileID: 2775706150076775027}
+  - component: {fileID: 968567514539190008}
   m_Layer: 0
   m_Name: TurboSprint
   m_TagString: Untagged
@@ -123,3 +124,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   duration: 5
   speedMultiplier: 2
+--- !u!114 &968567514539190008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7813452240099425719}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 043614489608a854399f526318b3610e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  duration: 5
