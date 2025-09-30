@@ -4,9 +4,9 @@ public class PowerOrb : MonoBehaviour
 {
     [Header("Power Settings")]
     public PowerType powerType; 
-    public float floatSpeed = 2f; // Speed of up/down movement
-    public float floatHeight = 0.5f; // How high/low it moves
-    public float respawnTime = 5f; // Time in seconds to respawn 
+    public float floatSpeed = 5f; // Speed of up/down movement
+    public float floatHeight = 0.05f; // How high/low it moves
+    public float respawnTime = 3f; // Time in seconds to respawn 
     
     private PowerManager powerManager;
     private bool hasBeenCollected = false;
