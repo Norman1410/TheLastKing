@@ -20,6 +20,6 @@ public static class LanHarnessBootstrap
         // Si no existe, créalo por código
         var go = new GameObject("LAN_QuickJoin_UI");
         Object.DontDestroyOnLoad(go);
-        go.AddComponent<QuickJoinLocalUI>(); // <--- si tu script se llama distinto, cámbialo aquí
+        go.AddComponent<QuickJoinLocalUI>();
     }
 }
