@@ -8,14 +8,20 @@ public static class HarnessRelayAddon
     static void Boot()
     {
         if (NetRuntime.Mode != NetMode.Relay) return;
+
+#if TLK_QUICKJOIN
         CreateRelayHUDAndTidy();
+#endif
     }
 
     // Llamable manualmente desde el bootstrap unificado
     public static void TryCreateUI()
     {
         if (NetRuntime.Mode != NetMode.Relay) return;
+
+#if TLK_QUICKJOIN
         CreateRelayHUDAndTidy();
+#endif
     }
 
     static void CreateRelayHUDAndTidy()
@@ -33,10 +39,8 @@ public static class HarnessRelayAddon
             ui.AddComponent<QuickRelayOverlay>();
         }
 
-        // Apaga MainCamera si no es parte de un objeto de red (para no tapar el HUD)
-        var main = Camera.main;
-        if (main != null && main.transform.GetComponentInParent<NetworkObject>() == null)
-            main.gameObject.SetActive(false);
+        // IMPORTANTE: NO apagar aquí la MainCamera.
+        // Se apagará sola cuando el jugador dueño spawnee su cámara de red.
     }
 
     // Elimina HUD LAN si aparece mientras estamos en Relay
