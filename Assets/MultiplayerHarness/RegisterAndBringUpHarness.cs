@@ -6,17 +6,25 @@ using UnityEngine;
 
 public class RegisterAndBringUpHarness : MonoBehaviour
 {
+    // Por defecto APAGADO: no interfiere con el lobby LAN ni con Relay.
+    // Si quieres el flujo rápido de pruebas, define TLK_QUICKJOIN en Scripting Define Symbols.
+#if TLK_QUICKJOIN
+    public static bool QuickJoinEnabled = true;
+#else
+    public static bool QuickJoinEnabled = false;
+#endif
+
     static GameObject _playerPrefab;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void BootEarly()
     {
-        // Asegurar NetworkManager + Transport una sola vez
-        if (FindObjectOfType<NetworkManager>() == null)
+        // Guard: si no hay NetworkManager en escena, creamos uno mínimo.
+        if (Object.FindFirstObjectByType<NetworkManager>() == null)
         {
             var go = new GameObject("NetworkManager_BOOT");
-            DontDestroyOnLoad(go);
-            var nm = go.AddComponent<NetworkManager>();
+            Object.DontDestroyOnLoad(go);
+            var nm  = go.AddComponent<NetworkManager>();
             var utp = go.AddComponent<UnityTransport>();
 
             if (nm.NetworkConfig == null) nm.NetworkConfig = new NetworkConfig();
@@ -28,15 +36,19 @@ public class RegisterAndBringUpHarness : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
     {
-        // UI mínima
-        if (FindObjectOfType<QuickJoinLocalUI>() == null)
+    #if TLK_QUICKJOIN
+        // Si NO quieres quick-join, quita el define TLK_QUICKJOIN y todo este bloque no compila.
+        if (!QuickJoinEnabled) return;
+
+        // UI de pruebas local
+        if (Object.FindFirstObjectByType<QuickJoinLocalUI>() == null)
         {
             var ui = new GameObject("MP_HARNESS_UI");
             ui.AddComponent<QuickJoinLocalUI>();
-            DontDestroyOnLoad(ui);
+            Object.DontDestroyOnLoad(ui);
         }
 
-        // Apaga Main Camera de escena si no es de red
+        // En quick-join, apagamos la MainCamera que no es de red para evitar doble cámara
         var main = Camera.main;
         if (main != null && main.transform.GetComponentInParent<NetworkObject>() == null)
             main.gameObject.SetActive(false);
@@ -44,18 +56,20 @@ public class RegisterAndBringUpHarness : MonoBehaviour
         var nm = NetworkManager.Singleton;
         if (nm == null) return;
 
-        // Cargar y registrar PlayerPrefab
+        // PlayerPrefab SOLO para quick-join (no tocamos la config del juego normal)
         _playerPrefab = Resources.Load<GameObject>("PlayerNetwork");
-        if (_playerPrefab == null) { Debug.LogError("[Harness] Falta Resources/PlayerNetwork.prefab"); return; }
-        if (nm.NetworkConfig.PlayerPrefab == null)
-            nm.NetworkConfig.PlayerPrefab = _playerPrefab;
-        try { nm.AddNetworkPrefab(_playerPrefab); } catch { }
+        if (_playerPrefab != null)
+        {
+            if (nm.NetworkConfig.PlayerPrefab == null)
+                nm.NetworkConfig.PlayerPrefab = _playerPrefab;
+            try { nm.AddNetworkPrefab(_playerPrefab); } catch { /* ya estaba */ }
+        }
 
-        // ConnectionApproval para que el server cree el Player
+        // ConnectionApproval: en quick-join sí auto-creamos el player
         nm.NetworkConfig.ConnectionApproval = true;
         nm.ConnectionApprovalCallback = OnApproval;
 
-        // Hooks server para garantizar spawn + ownership correcto
+        // Hooks server para garantizar spawn en quick-join
         nm.OnServerStarted += () =>
         {
             if (nm.IsHost) nm.StartCoroutine(EnsurePlayerCo(nm.LocalClientId));
@@ -65,17 +79,24 @@ public class RegisterAndBringUpHarness : MonoBehaviour
             if (!nm.IsServer) return;
             nm.StartCoroutine(EnsurePlayerCo(clientId));
         };
+    #else
+        // Sin TLK_QUICKJOIN no hacemos nada en Boot()
+        return;
+    #endif
     }
 
+
+    // SOLO usado cuando QuickJoinEnabled == true
     static void OnApproval(NetworkManager.ConnectionApprovalRequest req,
                            NetworkManager.ConnectionApprovalResponse resp)
     {
         resp.Approved = true;
         resp.CreatePlayerObject = true;
 
-        // Hash del prefab (compatible varias versiones)
+        // Hash del prefab (compatibilidad varias versiones NGO)
         uint hash = 0;
-        var no = NetworkManager.Singleton.NetworkConfig.PlayerPrefab?.GetComponent<NetworkObject>();
+        var pp = NetworkManager.Singleton.NetworkConfig.PlayerPrefab;
+        var no = pp != null ? pp.GetComponent<NetworkObject>() : null;
         if (no != null)
         {
             var t = no.GetType();
@@ -85,10 +106,10 @@ public class RegisterAndBringUpHarness : MonoBehaviour
             if (p != null)
             {
                 var val = p.GetValue(no);
-                if (val is uint u) hash = u;
-                else if (val is int i) hash = unchecked((uint)i);
+                if      (val is uint  u ) hash = u;
+                else if (val is int   i ) hash = unchecked((uint)i);
                 else if (val is ulong ul) hash = unchecked((uint)ul);
-                else if (val is long l) hash = unchecked((uint)l);
+                else if (val is long  l ) hash = unchecked((uint)l);
             }
         }
         resp.PlayerPrefabHash = hash;
@@ -96,24 +117,27 @@ public class RegisterAndBringUpHarness : MonoBehaviour
         resp.Rotation = Quaternion.identity;
     }
 
+    // SOLO quick-join
     static IEnumerator EnsurePlayerCo(ulong clientId)
     {
         var nm = NetworkManager.Singleton;
-        // Espera 1–2 frames para dejar que NGO haga su spawn automático
-        yield return null; yield return null;
+        yield return null; yield return null; // deja que NGO haga su spawn automático
 
         var existing = nm.SpawnManager.GetPlayerNetworkObject(clientId);
         if (existing == null)
         {
-            // Crear a mano si no existe
-            var go = Instantiate(_playerPrefab);
+            if (_playerPrefab == null)
+            {
+                Debug.LogError("[Harness] Prefab PlayerNetwork no encontrado para quick-join.");
+                yield break;
+            }
+            var go = Object.Instantiate(_playerPrefab);
             var no = go.GetComponent<NetworkObject>();
             if (no == null) { Debug.LogError("[Harness] Prefab sin NetworkObject"); yield break; }
             no.SpawnAsPlayerObject(clientId);
             existing = no;
         }
 
-        // Si por error quedó con dueño incorrecto, transfiere ownership
         if (existing.OwnerClientId != clientId)
             existing.ChangeOwnership(clientId);
     }
