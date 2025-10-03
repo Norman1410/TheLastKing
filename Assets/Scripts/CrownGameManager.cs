@@ -28,7 +28,7 @@ public class CrownGameManager : MonoBehaviour
         
         Debug.Log($"Se encontraron {allPlayers.Count} jugadores");
     }
-    
+        
     void AssignRandomCrowns()
     {
         if (allPlayers.Count == 0)
