@@ -275,10 +275,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d41b4a4e01366294dadbea058b99e7c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  walkSpeed: 5
+  walkSpeed: 4
   runSpeed: 8
-  jumpHeight: 2
-  gravity: -9.81
+  jumpHeight: 1.5
+  gravity: -50
   mouseSensitivity: 0.5
   maxLookAngle: 80
   groundCheck: {fileID: 2087591144217242851}
