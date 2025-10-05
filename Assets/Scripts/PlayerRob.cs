@@ -3,7 +3,7 @@ using Unity.Netcode;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 
-public class PlayerRob : NetworkBehaviour // CAMBIADO: ahora hereda de NetworkBehaviour
+public class PlayerRob : NetworkBehaviour 
 {
     [Header("Corona Settings")]
     [SerializeField] private GameObject crownObject;
