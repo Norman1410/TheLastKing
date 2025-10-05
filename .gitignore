@@ -6,6 +6,7 @@
 [Ll]ogs/
 [Mm]emoryCaptures/
 UserSettings/
+.vs/
 *.csproj
 *.sln
 *.user
@@ -14,3 +15,4 @@ UserSettings/
 *.svd
 *.userprefs
 *.DS_Store
+

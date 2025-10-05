@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Threading.Tasks;
+using Unity.Netcode;
 
 public class QuickRelayOverlay : MonoBehaviour
 {
@@ -11,8 +12,22 @@ public class QuickRelayOverlay : MonoBehaviour
 
     void Awake() => DontDestroyOnLoad(gameObject);
 
+    void Update()
+    {
+        // Si ya hay red activa (host/cliente), ocultar overlay
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+        {
+            gameObject.SetActive(false);
+            enabled = false;
+        }
+    }
+
     void OnGUI()
     {
+        // Solo mostrar si estamos realmente en Relay y no hay red activa
+        if (NetRuntime.Mode != NetMode.Relay) return;
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening) return;
+
         _rect = GUILayout.Window(999123, _rect, Draw, "Relay (UGS)");
     }
 

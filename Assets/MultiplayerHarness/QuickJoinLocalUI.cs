@@ -1,3 +1,4 @@
+#if TLK_QUICKJOIN
 using Unity.Netcode;
 using UnityEngine;
 using System.Reflection;
@@ -30,7 +31,7 @@ public class QuickJoinLocalUI : MonoBehaviour
 
     NetworkManager FindNM()
     {
-        var nm = Object.FindObjectOfType<NetworkManager>();
+        var nm = Object.FindFirstObjectByType<NetworkManager>();
         if (nm == null) Debug.LogError("[UI] No hay NetworkManager en la escena.");
         return nm;
     }
@@ -38,30 +39,35 @@ public class QuickJoinLocalUI : MonoBehaviour
     bool PrepareConfig(NetworkManager nm)
     {
         if (nm == null) return false;
+        if (nm.NetworkConfig == null) nm.NetworkConfig = new NetworkConfig();
 
-        // Asegura que haya NetworkConfig
-        if (nm.NetworkConfig == null)
-            nm.NetworkConfig = new NetworkConfig();
-
-        // Apaga Main Camera de escena si no es de red
+        // Apaga Main Camera si no es de red
         var main = Camera.main;
         if (main != null && main.transform.GetComponentInParent<NetworkObject>() == null)
             main.gameObject.SetActive(false);
 
-        // PlayerPrefab (cargar desde Resources)
+        // PlayerPrefab desde Resources (sirve para MultiplayerHarness/Resources)
         if (nm.NetworkConfig.PlayerPrefab == null)
         {
             var p = Resources.Load<GameObject>("PlayerNetwork");
             if (p == null) { Debug.LogError("[UI] Falta Resources/PlayerNetwork.prefab"); return false; }
             nm.NetworkConfig.PlayerPrefab = p;
-            try { nm.AddNetworkPrefab(p); } catch { /* ok */ }
         }
+        // NO agregar nada a la lista de prefabs aquí.
 
-        // Connection Approval para que el server cree el Player
+
+        // Connection Approval: auto-create player (solo quick-join)
         nm.NetworkConfig.ConnectionApproval = true;
         nm.ConnectionApprovalCallback = OnApproval;
 
         return true;
+    }
+
+    static bool AlreadyInList(NetworkManager nm, GameObject prefab)
+    {
+        foreach (var np in nm.NetworkConfig.NetworkPrefabs)
+            if (np.Prefab == prefab) return true;
+        return false;
     }
 
     static void OnApproval(NetworkManager.ConnectionApprovalRequest req,
@@ -70,7 +76,6 @@ public class QuickJoinLocalUI : MonoBehaviour
         resp.Approved = true;
         resp.CreatePlayerObject = true;
 
-        // Hash del prefab (compatible con distintas versiones de NGO)
         uint hash = 0;
         var pp = NetworkManager.Singleton.NetworkConfig.PlayerPrefab;
         var no = pp != null ? pp.GetComponent<NetworkObject>() : null;
@@ -83,15 +88,15 @@ public class QuickJoinLocalUI : MonoBehaviour
             if (p != null)
             {
                 var val = p.GetValue(no);
-                if (val is uint u) hash = u;
-                else if (val is int i) hash = unchecked((uint)i);
+                if      (val is uint  u ) hash = u;
+                else if (val is int   i ) hash = unchecked((uint)i);
                 else if (val is ulong ul) hash = unchecked((uint)ul);
-                else if (val is long l) hash = unchecked((uint)l);
+                else if (val is long  l ) hash = unchecked((uint)l);
             }
         }
         resp.PlayerPrefabHash = hash;
-
         resp.Position = Vector3.zero;
         resp.Rotation = Quaternion.identity;
     }
 }
+#endif

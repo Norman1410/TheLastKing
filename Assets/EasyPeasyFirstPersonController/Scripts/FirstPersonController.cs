@@ -6,34 +6,36 @@ namespace EasyPeasyFirstPersonController
 
     public partial class FirstPersonController : MonoBehaviour
     {
-        [Range(0, 100)] public float mouseSensitivity = 25f;
+        [Range(0, 100)] public float mouseSensitivity = 50f;
         [Range(0f, 200f)] private float snappiness = 100f;
-        [Range(0f, 20f)] public float walkSpeed = 10f;
-        [Range(0f, 30f)] public float sprintSpeed = 15f;
-        [Range(0f, 10f)] public float crouchSpeed = 6f;
+        [Range(0f, 20f)] public float walkSpeed = 3f;
+        [Range(0f, 30f)] public float sprintSpeed = 5f;
+        [Range(0f, 10f)] public float crouchSpeed = 1.5f;
         public float crouchHeight = 1f;
-        public float crouchCameraHeight = 0.5f;
-        public float slideSpeed = 9f;
+        public float crouchCameraHeight = 1f;
+        public float slideSpeed = 8f;
         public float slideDuration = 0.7f;
         public float slideFovBoost = 5f;
         public float slideTiltAngle = 5f;
         [Range(0f, 15f)] public float jumpSpeed = 3f;
         [Range(0f, 50f)] public float gravity = 9.81f;
         public bool coyoteTimeEnabled = true;
-        public float coyoteTimeDuration = 0.25f;
+        [Range(0.01f, 0.3f)] public float coyoteTimeDuration = 0.2f;
         public float normalFov = 60f;
         public float sprintFov = 70f;
         public float fovChangeSpeed = 5f;
-        public float walkingBobbingSpeed = 14f;
+        public float walkingBobbingSpeed = 10f;
         public float bobbingAmount = 0.05f;
-        private float sprintBobMultiplier = 1.2f;
+        private float sprintBobMultiplier = 1.5f;
         private float recoilReturnSpeed = 8f;
         public bool canSlide = true;
         public bool canJump = true;
         public bool canSprint = true;
         public bool canCrouch = true;
+        public QueryTriggerInteraction ceilingCheckQueryTriggerInteraction = QueryTriggerInteraction.Ignore;
+        public QueryTriggerInteraction groundCheckQueryTriggerInteraction = QueryTriggerInteraction.Ignore;
         public Transform groundCheck;
-        public float groundDistance = 0.3f;
+        public float groundDistance = 0.2f;
         public LayerMask groundMask;
         public Transform playerCamera;
         public Transform cameraParent;
@@ -85,11 +87,16 @@ namespace EasyPeasyFirstPersonController
             currentFov = normalFov;
             currentSlideSpeed = 0f;
             currentTiltAngle = 0f;
+
+            rotX = transform.rotation.eulerAngles.y;
+            rotY = playerCamera.localRotation.eulerAngles.x;
+            xVelocity = rotX;
+            yVelocity = rotY;
         }
 
         private void Update()
         {
-            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask, groundCheckQueryTriggerInteraction);
             if (isGrounded && moveDirection.y < 0)
             {
                 moveDirection.y = -2f;
@@ -125,7 +132,7 @@ namespace EasyPeasyFirstPersonController
             Vector3 point2 = point1 + Vector3.up * characterController.height * 0.6f;
             float capsuleRadius = characterController.radius * 0.95f;
             float castDistance = isSliding ? originalHeight + 0.2f : originalHeight - crouchHeight + 0.2f;
-            bool hasCeiling = Physics.CapsuleCast(point1, point2, capsuleRadius, Vector3.up, castDistance, groundMask);
+            bool hasCeiling = Physics.CapsuleCast(point1, point2, capsuleRadius, Vector3.up, castDistance, groundMask, ceilingCheckQueryTriggerInteraction);
             if (isSliding)
             {
                 postSlideCrouchTimer = 0.3f;
