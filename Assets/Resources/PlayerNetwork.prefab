@@ -278,14 +278,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 2317024791
-  InScenePlacedSourceGlobalObjectIdHash: 0
+  GlobalObjectIdHash: 415614124
+  InScenePlacedSourceGlobalObjectIdHash: 2317024791
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
   ActiveSceneSynchronization: 0
-  SceneMigrationSynchronization: 1
+  SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
@@ -304,7 +304,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  crownObject: {fileID: 0}
+  crownObject: {fileID: 6366832879473223513}
   robDistance: 2
   playerLayer:
     serializedVersion: 2
@@ -407,7 +407,7 @@ MonoBehaviour:
   runSpeed: 8
   jumpHeight: 1.5
   gravity: -50
-  mouseSensitivity: 0.5
+  mouseSensitivity: 1
   maxLookAngle: 80
   groundCheck: {fileID: 2087591144217242851}
   groundDistance: 0.2
@@ -534,5 +534,10 @@ PrefabInstance:
 --- !u!4 &6060800779978738356 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7605879307510665867, guid: c99feb5c1e964aa4bba795f84c989715, type: 3}
+  m_PrefabInstance: {fileID: 4436547955450828863}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &6366832879473223513 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7334745420534824806, guid: c99feb5c1e964aa4bba795f84c989715, type: 3}
   m_PrefabInstance: {fileID: 4436547955450828863}
   m_PrefabAsset: {fileID: 0}
