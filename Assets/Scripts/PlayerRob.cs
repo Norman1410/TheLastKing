@@ -26,45 +26,34 @@ public class PlayerRob : NetworkBehaviour
     [SerializeField] private Camera playerCamera;
     
     private PlayerRob targetPlayer;
-    private PlayerInputActions inputActions;
     private InputAction robAction;
     private PlayerInput playerInput;
 
-    void Start()
+    void Awake()
     {
-        // Si no se asignó la cámara, buscar la cámara principal
         if (playerCamera == null)
             playerCamera = Camera.main;
         
-        // Si aún es null, buscar en los hijos
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
         
-        // Si todavía es null, dar advertencia
-        if (playerCamera == null)
-            Debug.LogError($"No se encontró cámara para {gameObject.name}. Asigna una cámara en el Inspector.");
-        
-        // Configurar Input System
         playerInput = GetComponent<PlayerInput>();
         if (playerInput != null)
         {
             robAction = playerInput.actions["Rob"];
-            
-            // Suscribirse al evento cuando se presiona el botón de robo
-            robAction.performed += OnRobPerformed;
+            if (robAction != null)
+            {
+                robAction.performed += OnRobPerformed;
+            }
+            else
+            {
+                Debug.LogError($"[{gameObject.name}] Acción 'Rob' no encontrada en PlayerInput!");
+            }
         }
-        else
-        {
-            Debug.LogError($"No se encontró PlayerInput en {gameObject.name}. Asegúrate de tener el componente PlayerInput.");
-        }
-        
-        // Actualizar el estado visual de la corona
-        UpdateCrownVisual(hasCrown.Value);
     }
 
     void OnDestroy()
     {
-        // Desuscribirse del evento para evitar memory leaks
         if (robAction != null)
         {
             robAction.performed -= OnRobPerformed;
@@ -73,11 +62,11 @@ public class PlayerRob : NetworkBehaviour
 
     void OnRobPerformed(InputAction.CallbackContext context)
     {
-        // Solo el dueño puede robar
         if (!IsOwner) return;
         
-        // Intentar robar si hay un objetivo válido
-        if (targetPlayer != null)
+        Debug.Log($"[{gameObject.name}] Input ROB recibido! Target: {targetPlayer != null}");
+        
+        if (targetPlayer != null && targetPlayer.HasCrown())
         {
             RobCrown();
         }
@@ -87,109 +76,139 @@ public class PlayerRob : NetworkBehaviour
     {
         base.OnNetworkSpawn();
         
-        // Suscribirse a cambios en la corona
         hasCrown.OnValueChanged += OnCrownChanged;
-        
-        // Aplicar el estado inicial
         UpdateCrownVisual(hasCrown.Value);
+        
+        Debug.Log($"[{gameObject.name}] Spawned - IsOwner: {IsOwner}, HasCrown: {hasCrown.Value}");
     }
 
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
-        hasCrown.OnValueChanged -= OnCrownChanged;
+        if (hasCrown != null)
+            hasCrown.OnValueChanged -= OnCrownChanged;
     }
 
     void OnCrownChanged(bool oldValue, bool newValue)
     {
         UpdateCrownVisual(newValue);
-        Debug.Log($"[{gameObject.name}] Corona cambiada: {oldValue} -> {newValue}");
+        Debug.Log($"[{gameObject.name}] Corona: {oldValue} -> {newValue}");
     }
 
     void Update()
     {
-        // Solo el dueño del jugador puede controlar el robo
         if (!IsOwner) return;
+
+        // FALLBACK: Si no hay Input System, usar click izquierdo
+        if (Input.GetMouseButtonDown(0)) // 0 = Click Izquierdo
+        {
+            if (targetPlayer != null && targetPlayer.HasCrown())
+            {
+                Debug.Log($"[{gameObject.name}] Robo directo (fallback)");
+                RobCrown();
+            }
+        }
 
         if (hasCrown.Value)
         {
-            // Si tengo corona, solo huir (no necesito detectar)
             if (crosshair != null)
                 crosshair.color = normalColor;
+            targetPlayer = null;
             return;
         }
         
-        // Si NO tengo corona, buscar jugadores con corona para robar
         DetectTargetPlayer();
     }
     
     void DetectTargetPlayer()
     {
-        // Verificar que la cámara existe antes de usar
         if (playerCamera == null)
+        {
+            Debug.LogWarning($"[{gameObject.name}] playerCamera es null!");
             return;
+        }
             
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         RaycastHit hit;
         
-        // Lanzar raycast desde el centro de la pantalla
         if (Physics.Raycast(ray, out hit, robDistance, playerLayer))
         {
-            // Verificar la distancia - debe estar dentro del rango
             float distance = Vector3.Distance(transform.position, hit.point);
             
             if (distance <= robDistance)
             {
                 PlayerRob player = hit.collider.GetComponent<PlayerRob>();
                 
-                // Verificar que sea un jugador válido y tenga corona
                 if (player != null && player != this && player.HasCrown())
                 {
                     targetPlayer = player;
                     
-                    // Cambiar color del crosshair a "puede robar"
                     if (crosshair != null)
                         crosshair.color = canRobColor;
+                    
+                    // Debug visual
+                    Debug.DrawRay(ray.origin, ray.direction * robDistance, Color.green);
                     
                     return;
                 }
             }
         }
         
-        // No hay objetivo válido
         targetPlayer = null;
         if (crosshair != null)
             crosshair.color = normalColor;
+        
+        // Debug visual cuando no hay objetivo
+        Debug.DrawRay(ray.origin, ray.direction * robDistance, Color.yellow);
     }
 
     void RobCrown()
     {
-        if (targetPlayer == null) return;
-        
-        // Obtener el NetworkObjectId del jugador objetivo
-        var targetNetObj = targetPlayer.GetComponent<NetworkObject>();
-        if (targetNetObj != null)
+        if (targetPlayer == null)
         {
-            // Llamar al servidor para robar la corona
+            Debug.LogWarning($"[{gameObject.name}] targetPlayer es null!");
+            return;
+        }
+        
+        var targetNetObj = targetPlayer.GetComponent<NetworkObject>();
+        if (targetNetObj != null && targetNetObj.IsSpawned)
+        {
+            Debug.Log($"[{gameObject.name}] Enviando ServerRpc para robar...");
             RobCrownServerRpc(targetNetObj.NetworkObjectId);
         }
     }
 
     [ServerRpc(RequireOwnership = false)]
-    void RobCrownServerRpc(ulong targetNetworkObjectId)
+    void RobCrownServerRpc(ulong targetNetworkObjectId, ServerRpcParams rpcParams = default)
     {
-        // Buscar el jugador objetivo por NetworkObjectId
+        Debug.Log($"[Server] ServerRpc recibido de cliente {rpcParams.Receive.SenderClientId}");
+        
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetNetObj))
         {
             var targetPlayer = targetNetObj.GetComponent<PlayerRob>();
             if (targetPlayer != null && targetPlayer.hasCrown.Value)
             {
-                // Transferir la corona
+                // Verificar distancia server-side
+                float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
+                if (distance > robDistance + 1f)
+                {
+                    Debug.LogWarning($"[Server] Robo rechazado: distancia {distance:F2} > {robDistance}");
+                    return;
+                }
+                
                 targetPlayer.hasCrown.Value = false;
                 this.hasCrown.Value = true;
                 
-                Debug.Log($"[Server] {gameObject.name} robó la corona de {targetPlayer.gameObject.name}!");
+                Debug.Log($"[Server] {gameObject.name} robó corona de {targetPlayer.gameObject.name}!");
             }
+            else
+            {
+                Debug.LogWarning($"[Server] Objetivo no tiene corona o es null");
+            }
+        }
+        else
+        {
+            Debug.LogWarning($"[Server] NetworkObject {targetNetworkObjectId} no encontrado");
         }
     }
 
@@ -199,11 +218,12 @@ public class PlayerRob : NetworkBehaviour
         {
             crownObject.SetActive(active);
         }
+        else if (active)
+        {
+            Debug.LogWarning($"[{gameObject.name}] crownObject no asignado pero debería mostrar corona!");
+        }
     }
 
-    // ===== MÉTODOS PÚBLICOS PARA EL CROWNMANAGER =====
-
-    // Método directo para el servidor (NO es RPC, se llama directamente en el servidor)
     public void SetCrownDirect(bool value)
     {
         if (!IsServer)
@@ -213,35 +233,46 @@ public class PlayerRob : NetworkBehaviour
         }
         
         hasCrown.Value = value;
+        Debug.Log($"[Server] SetCrownDirect: {gameObject.name} corona = {value}");
     }
 
-    // Getter público
     public bool HasCrown()
     {
         return hasCrown.Value;
     }
 
-    // Método de compatibilidad (solo servidor)
     public void SetCrown(bool value)
     {
         if (IsServer)
         {
             hasCrown.Value = value;
         }
-        else
-        {
-            Debug.LogWarning("SetCrown() llamado desde cliente. Usa SetCrownServerRpc()");
-        }
     }
     
-    // Visualizar el rango de robo en el editor
     void OnDrawGizmosSelected()
     {
         if (playerCamera != null)
         {
-            Gizmos.color = Color.yellow;
+            Gizmos.color = hasCrown.Value ? Color.yellow : Color.cyan;
             Vector3 direction = playerCamera.transform.forward;
             Gizmos.DrawRay(playerCamera.transform.position, direction * robDistance);
+            Gizmos.DrawWireSphere(playerCamera.transform.position + direction * robDistance, 0.3f);
         }
+    }
+
+    void OnGUI()
+    {
+        if (!IsOwner) return;
+
+        GUILayout.BeginArea(new Rect(10, 10, 300, 100));
+        GUILayout.Label($"HasCrown: {hasCrown.Value}");
+        GUILayout.Label($"Target: {(targetPlayer != null ? "SÍ" : "NO")}");
+        GUILayout.Label($"Camera: {(playerCamera != null ? "OK" : "NULL")}");
+        if (targetPlayer != null)
+        {
+            float dist = Vector3.Distance(transform.position, targetPlayer.transform.position);
+            GUILayout.Label($"Distancia: {dist:F2}m / {robDistance}m");
+        }
+        GUILayout.EndArea();
     }
 }
