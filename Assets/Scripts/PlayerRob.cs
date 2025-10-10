@@ -52,7 +52,7 @@ public class PlayerRob : NetworkBehaviour
         }
     }
 
-    void OnDestroy()
+    public override void OnDestroy()
     {
         if (robAction != null)
         {
@@ -78,8 +78,6 @@ public class PlayerRob : NetworkBehaviour
         
         hasCrown.OnValueChanged += OnCrownChanged;
         UpdateCrownVisual(hasCrown.Value);
-        
-        Debug.Log($"[{gameObject.name}] Spawned - IsOwner: {IsOwner}, HasCrown: {hasCrown.Value}");
     }
 
     public override void OnNetworkDespawn()

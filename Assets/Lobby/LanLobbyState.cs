@@ -24,8 +24,8 @@ public class LanLobbyState : NetworkBehaviour
 {
     public static LanLobbyState Instance;
 
-    [Header("Misma escena: deja el nombre actual")]
-    [SerializeField] string gameplaySceneName = "SampleScene";
+    [Header("Gameplay Scene Name (leave current scene name to spawn in same scene)")]
+    [SerializeField] string gameplaySceneName = "Game";
 
     public NetworkList<LanPlayerEntry> Players;
     public readonly NetworkVariable<bool> GameStarted =
@@ -112,26 +112,63 @@ public class LanLobbyState : NetworkBehaviour
     public bool AllReady()
     {
         if (Players.Count == 0) return false;
+        
+        // Host doesn't need to be ready, only clients
         for (int i = 0; i < Players.Count; i++)
-            if (!Players[i].Ready) return false;
+        {
+            // Skip the host (server's client ID)
+            if (Players[i].ClientId == NetworkManager.ServerClientId)
+                continue;
+                
+            if (!Players[i].Ready) 
+                return false;
+        }
+        
         return true;
     }
 
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
-        if (!IsServer || !AllReady()) return;
+        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={AllReady()}");
+        
+        if (!IsServer)
+        {
+            Debug.LogWarning("[LanLobbyState] Cannot start match: Not server");
+            return;
+        }
+        
+        if (!AllReady())
+        {
+            Debug.LogWarning("[LanLobbyState] Cannot start match: Not all players are ready");
+            LogPlayerStates();
+            return;
+        }
 
+        Debug.Log("[LanLobbyState] Starting match...");
         GameStarted.Value = true;
 
         var current = SceneManager.GetActiveScene().name;
+        Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {gameplaySceneName}");
+        
         if (string.Equals(current, gameplaySceneName))
         {
+            Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
             SpawnAllPlayersNow(); // misma escena
         }
         else
         {
+            Debug.Log($"[LanLobbyState] Loading scene: {gameplaySceneName}");
             NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
+        }
+    }
+    
+    void LogPlayerStates()
+    {
+        Debug.Log($"[LanLobbyState] Player count: {Players.Count}");
+        for (int i = 0; i < Players.Count; i++)
+        {
+            Debug.Log($"  Player {i}: ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
         }
     }
 

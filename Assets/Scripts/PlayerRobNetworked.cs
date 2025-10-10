@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using Unity.Netcode;
 using UnityEngine.UI;
@@ -5,6 +6,9 @@ using UnityEngine.UI;
 // Networked version of PlayerRob. Attach to player prefabs that have a NetworkObject.
 public class PlayerRobNetworked : NetworkBehaviour
 {
+    // Networked nickname - other clients will see this value
+    public NetworkVariable<string> PlayerNickname = new NetworkVariable<string>("Player");
+
     [Header("Crown Visual")]
     [SerializeField] private GameObject crownObject; // child object to enable/disable
 
@@ -33,6 +37,14 @@ public class PlayerRobNetworked : NetworkBehaviour
         if (CrownManager.Instance != null)
         {
             CrownManager.Instance.CrownOwner.OnValueChanged += OnCrownOwnerChanged;
+        }
+
+        // If this is the server or owner, we can set an initial nickname
+        // Typically the server would set nicknames on spawn. For convenience, owner will set its saved nickname when it becomes the local client.
+        if (IsOwner)
+        {
+            // Tell server to set this client's nickname from local PlayerPrefs (via NicknameManager)
+            SetNicknameServerRpc(NicknameManager.GetCurrentNickname());
         }
     }
 
@@ -124,6 +136,31 @@ public class PlayerRobNetworked : NetworkBehaviour
         if (NetworkManager.Singleton == null) return false;
     if (CrownManager.Instance == null) return false;
     return CrownManager.Instance.CrownOwner.Value == OwnerClientId;
+    }
+
+    // ServerRpc used by owner to set their nickname on the server so it replicates to others
+    [ServerRpc(RequireOwnership = true)]
+    public void SetNicknameServerRpc(string nickname, ServerRpcParams rpcParams = default)
+    {
+        if (string.IsNullOrEmpty(nickname)) nickname = "Player";
+        PlayerNickname.Value = nickname;
+    }
+
+    // Helper for other components to read the nickname safely
+    public string GetNetworkedNickname()
+    {
+        return PlayerNickname != null ? PlayerNickname.Value : "Player";
+    }
+
+    // Allow other local components to subscribe to nickname changes without accessing the field directly
+    public void SubscribeToNickname(NetworkVariable<string>.OnValueChangedDelegate callback)
+    {
+        if (PlayerNickname != null) PlayerNickname.OnValueChanged += callback;
+    }
+
+    public void UnsubscribeFromNickname(NetworkVariable<string>.OnValueChangedDelegate callback)
+    {
+        if (PlayerNickname != null) PlayerNickname.OnValueChanged -= callback;
     }
 
     private void UpdateCrownVisual(bool has)
