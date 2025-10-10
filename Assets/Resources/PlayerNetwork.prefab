@@ -1268,7 +1268,6 @@ GameObject:
   - component: {fileID: 625736466734795159}
   - component: {fileID: 8338992121387996168}
   - component: {fileID: 8954258439075259509}
-  - component: {fileID: 8353922652002922117}
   m_Layer: 0
   m_Name: NameCanvas
   m_TagString: Untagged
@@ -1359,25 +1358,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &8353922652002922117
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6263271400488400271}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ddac04a6e003b0042b94c547a5c38b3d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  worldCanvas: {fileID: 625736466734795159}
-  backgroundPanel: {fileID: 3393611640281301444}
-  nicknameText: {fileID: 2718231903968779998}
-  playerTransform: {fileID: 3020579608923997534}
-  lookAtCamera: 1
-  usePreviewName: 0
-  previewName: TestPlayer
 --- !u!1 &6269178158324610730
 GameObject:
   m_ObjectHideFlags: 0
@@ -1686,7 +1666,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 1843802537
+  GlobalObjectIdHash: 2317024791
   InScenePlacedSourceGlobalObjectIdHash: 2317024791
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1954,7 +1934,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3680376337918313167}
-  - component: {fileID: 8450959923575487602}
   m_Layer: 0
   m_Name: PlayerTemplate
   m_TagString: Untagged
@@ -1978,25 +1957,6 @@ Transform:
   - {fileID: 5066407269234618054}
   m_Father: {fileID: 3020579608923997534}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8450959923575487602
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7802365321019897779}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ddac04a6e003b0042b94c547a5c38b3d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  worldCanvas: {fileID: 625736466734795159}
-  backgroundPanel: {fileID: 0}
-  nicknameText: {fileID: 2718231903968779998}
-  playerTransform: {fileID: 0}
-  lookAtCamera: 0
-  usePreviewName: 0
-  previewName: TestPlayer
 --- !u!1 &8264159182707192051
 GameObject:
   m_ObjectHideFlags: 0
