@@ -61,7 +61,11 @@ public class LanLobbyState : NetworkBehaviour
         }
 
         if (IsClient)
+        {
             RegisterSelfServerRpc(PlayerName.Get());
+            // subscribe to local scene load so client can notify server when it finished loading gameplay scene
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnLocalSceneLoaded;
+        }
     }
 
     public override void OnNetworkDespawn()
@@ -72,6 +76,38 @@ public class LanLobbyState : NetworkBehaviour
             NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
             NetworkManager.SceneManager.OnLoadEventCompleted -= OnLoadEventCompleted;
         }
+        if (IsClient)
+        {
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnLocalSceneLoaded;
+        }
+    }
+
+    bool _reportedReadyForSpawn = false;
+
+    void OnLocalSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        // Only run on clients
+        if (!IsClient) return;
+
+        if (!string.Equals(scene.name, gameplaySceneName)) return;
+
+        // If the game hasn't been started by host, ignore
+        if (!GameStarted.Value) return;
+
+        if (_reportedReadyForSpawn) return;
+
+        _reportedReadyForSpawn = true;
+        Debug.Log($"[LanLobbyState] Client local scene loaded ('{scene.name}'). Reporting ready to server.");
+        ClientReadyForSpawnServerRpc();
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    void ClientReadyForSpawnServerRpc(ServerRpcParams rpc = default)
+    {
+        if (!IsServer) return;
+        var cid = rpc.Receive.SenderClientId;
+        Debug.Log($"[LanLobbyState] Received ClientReadyForSpawnServerRpc from {cid}. Spawning if missing.");
+        SpawnPlayerIfMissing(cid);
     }
 
     void OnClientConnected(ulong clientId)
@@ -181,7 +217,55 @@ public class LanLobbyState : NetworkBehaviour
         if (!GameStarted.Value) return;
         if (!string.Equals(sceneName, gameplaySceneName)) return;
 
-        SpawnAllPlayersNow();
+        Debug.Log($"[LanLobbyState] OnLoadEventCompleted for scene '{sceneName}'. Completed: {clientsCompleted.Count}, TimedOut: {clientsTimedOut.Count}");
+        if (clientsCompleted != null && clientsCompleted.Count > 0)
+        {
+            foreach (var cid in clientsCompleted)
+            {
+                Debug.Log($"[LanLobbyState] Spawning player for completed client {cid}");
+                SpawnPlayerIfMissing(cid);
+            }
+        }
+
+        if (clientsTimedOut != null && clientsTimedOut.Count > 0)
+        {
+            foreach (var cid in clientsTimedOut)
+            {
+                Debug.LogWarning($"[LanLobbyState] Client {cid} timed out while loading scene. Will retry spawn later when they finish loading.");
+            }
+        }
+
+        // Start a short retry loop to cover clients that finish loading a bit later
+        StartCoroutine(RetrySpawnMissingPlayers());
+    }
+
+    System.Collections.IEnumerator RetrySpawnMissingPlayers()
+    {
+        const int maxAttempts = 20; // ~10 seconds with delay 0.5s
+        const float delay = 0.5f;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            bool allSpawned = true;
+            foreach (var clientId in NetworkManager.ConnectedClientsIds)
+            {
+                if (NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
+                {
+                    if (cc.PlayerObject == null || !cc.PlayerObject.IsSpawned)
+                    {
+                        // Try to spawn; SpawnPlayerIfMissing contains its own checks and logs
+                        SpawnPlayerIfMissing(clientId);
+                        // If we attempted spawn, assume not all spawned yet
+                        allSpawned = false;
+                    }
+                }
+            }
+
+            if (allSpawned) yield break;
+            yield return new WaitForSeconds(delay);
+        }
+
+        Debug.LogWarning("[LanLobbyState] RetrySpawnMissingPlayers finished: some clients may not have PlayerObjects spawned.");
     }
 
     void SpawnAllPlayersNow()
@@ -218,7 +302,7 @@ public class LanLobbyState : NetworkBehaviour
         Vector3 pos = Vector3.zero;
         Quaternion rot = Quaternion.identity;
 
-        var spRoot = FindObjectOfType<NetworkSpawnPoints>();
+    var spRoot = UnityEngine.Object.FindAnyObjectByType<NetworkSpawnPoints>();
         if (spRoot != null)
         {
             var t = spRoot.transform;

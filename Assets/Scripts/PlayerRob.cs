@@ -13,6 +13,9 @@ public class PlayerRob : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
+    // Evento público para que el HUD pueda suscribirse
+    public System.Action<bool> OnCrownStatusChanged;
+
     [Header("Rob Settings")]
     [SerializeField] private float robDistance = 3f;
     [SerializeField] private LayerMask playerLayer;
@@ -91,6 +94,9 @@ public class PlayerRob : NetworkBehaviour
     {
         UpdateCrownVisual(newValue);
         Debug.Log($"[{gameObject.name}] Corona: {oldValue} -> {newValue}");
+        
+        // Disparar evento para que el HUD se actualice
+        OnCrownStatusChanged?.Invoke(newValue);
     }
 
     void Update()
