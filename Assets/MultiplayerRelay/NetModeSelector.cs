@@ -11,17 +11,18 @@ public class NetModeSelector : MonoBehaviour
 {
     void Awake()
     {
-        // ✅ Solo permitimos el selector si la escena tiene el ancla de lobby
-        //    o existe LanLobbyState.
-        bool allowed =
 #if UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER
-            FindAnyObjectByType<NetUIAnchor>(FindObjectsInactive.Include) != null ||
-            FindAnyObjectByType<LanLobbyState>(FindObjectsInactive.Include) != null;
+        var hasAnchor = FindAnyObjectByType<NetUIAnchor>(FindObjectsInactive.Include) != null;
+        var hasLanLobby = FindAnyObjectByType<LanLobbyState>(FindObjectsInactive.Include) != null;
 #else
-            // Compatibilidad con versiones antiguas (21/22):
-            FindObjectOfType<NetUIAnchor>(true) != null ||
-            FindObjectOfType<LanLobbyState>(true) != null;
+        var hasAnchor = FindObjectOfType<NetUIAnchor>(true) != null;
+        var hasLanLobby = FindObjectOfType<LanLobbyState>(true) != null;
 #endif
+
+        // Also allow selector when the active scene is the gameplay scene
+        bool isGameScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Pruebas_TheLastKing";
+
+        bool allowed = hasAnchor || hasLanLobby || isGameScene;
 
         if (!allowed)
         {
