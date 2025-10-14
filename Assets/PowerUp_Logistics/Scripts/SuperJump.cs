@@ -3,46 +3,21 @@ using System.Collections;
 
 public class SuperJump : PowerUp
 {
-    public float jumpMultiplier = 4f;   // Qué tanto aumenta el salto
-    public float effectDuration = 6f;         // Cuánto dura el poder
-
-    private FirstPersonController playerController;
-    private bool isCollected = false;
+    public float jumpMultiplier = 2f;
 
     public override void Activate(GameObject player)
     {
-        playerController = player.GetComponent<FirstPersonController>();
-
-        if (playerController != null)
+        PlayerMovement pm = player.GetComponent<PlayerMovement>();
+        if (pm != null)
         {
-            isCollected = true;
-            Debug.Log("Super Jump recogido. Presiona R para activarlo.");
-            gameObject.SetActive(false);
-
-            // Corrutina que espera a que el jugador presione R
-            playerController.StartCoroutine(WaitForActivation());
+            pm.jumpHeight *= jumpMultiplier;
+            player.GetComponent<MonoBehaviour>().StartCoroutine(ResetJump(pm));
         }
     }
 
-    private IEnumerator WaitForActivation()
+    private IEnumerator ResetJump(PlayerMovement pm)
     {
-        // Espera hasta que presione la tecla R
-        yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.R));
-
-        Debug.Log("Super Jump activado!");
-        float originalJump = playerController.jumpHeight;
-
-        // Aumenta la altura de salto
-        playerController.jumpHeight *= jumpMultiplier;
-
-        // Espera el tiempo de duración
-        yield return new WaitForSeconds(effectDuration);
-
-        // Restaura el salto original
-        playerController.jumpHeight = originalJump;
-        Debug.Log("Super Jump terminado.");
-
-        // Destruye el objeto después de usarlo
-        Destroy(gameObject);
+        yield return new WaitForSeconds(duration);
+        pm.jumpHeight /= jumpMultiplier;
     }
 }

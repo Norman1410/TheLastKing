@@ -41,26 +41,7 @@ public static class RelayTransportBootstrap
         string code      = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
 
         var nm  = NetworkManager.Singleton;
-        if (nm == null)
-        {
-            Debug.LogError("[Relay] NetworkManager.Singleton es null en RelayTransportBootstrap.StartHostWithRelayAsync.");
-            return null;
-        }
-
-        UnityTransport utp = null;
-        try { utp = nm.NetworkConfig?.NetworkTransport as UnityTransport; } catch { }
-        if (utp == null)
-        {
-            utp = nm.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
-            // assign into NetworkConfig if missing
-            if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
-            if (nm.NetworkConfig.NetworkTransport == null)
-            {
-                nm.NetworkConfig.NetworkTransport = utp;
-                Debug.Log("[Relay] Assigned UnityTransport instance to NetworkConfig.NetworkTransport.");
-            }
-        }
-
+        var utp = nm.GetComponent<UnityTransport>();
         if (utp == null)
         {
             Debug.LogError("[Relay] Falta UnityTransport en NetworkManager.");
@@ -69,15 +50,7 @@ public static class RelayTransportBootstrap
 
         // Usar UDP para evitar bloqueos de DTLS por firewall
         var serverData = new RelayServerData(alloc, "udp");
-        try
-        {
-            utp.SetRelayServerData(serverData);
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("[Relay] utp.SetRelayServerData threw: " + e);
-            return null;
-        }
+        utp.SetRelayServerData(serverData);
 
         nm.StartHost();
         Debug.Log("[Relay] Host listo. Code: " + code);
@@ -89,28 +62,10 @@ public static class RelayTransportBootstrap
     {
         await EnsureUGSAsync();
 
-        var join = await RelayService.Instance.JoinAllocationAsync(code /*, region*/);
+        JoinAllocation join = await RelayService.Instance.JoinAllocationAsync(code /*, region*/);
 
         var nm  = NetworkManager.Singleton;
-        if (nm == null)
-        {
-            Debug.LogError("[Relay] NetworkManager.Singleton es null en StartClientWithRelayAsync.");
-            return false;
-        }
-
-        UnityTransport utp = null;
-        try { utp = nm.NetworkConfig?.NetworkTransport as UnityTransport; } catch { }
-        if (utp == null)
-        {
-            utp = nm.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
-            if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
-            if (nm.NetworkConfig.NetworkTransport == null)
-            {
-                nm.NetworkConfig.NetworkTransport = utp;
-                Debug.Log("[Relay] Assigned UnityTransport instance to NetworkConfig.NetworkTransport (client).");
-            }
-        }
-
+        var utp = nm.GetComponent<UnityTransport>();
         if (utp == null)
         {
             Debug.LogError("[Relay] Falta UnityTransport en NetworkManager.");
@@ -119,15 +74,7 @@ public static class RelayTransportBootstrap
 
         // Usar UDP
         var serverData = new RelayServerData(join, "udp");
-        try
-        {
-            utp.SetRelayServerData(serverData);
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError("[Relay] utp.SetRelayServerData threw (client): " + e);
-            return false;
-        }
+        utp.SetRelayServerData(serverData);
 
         return nm.StartClient();
     }
