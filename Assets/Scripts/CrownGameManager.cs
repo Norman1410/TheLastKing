@@ -1,86 +1,160 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Unity.Netcode;
 
-public class CrownGameManager : MonoBehaviour
+public class CrownGameManager : NetworkBehaviour
 {
     [Header("Game Settings")]
-    [SerializeField] private int numberOfCrowns = 2; // Cantidad de jugadores que empiezan con corona
-    [SerializeField] private List<PlayerRob> allPlayers = new List<PlayerRob>();
+    [SerializeField] [Range(1, 100)] private int crownPercentage = 33;
+    [SerializeField] private float delayBeforeAssign = 1.5f;
     
-    [Header("Auto Find Players")]
-    [SerializeField] private bool autoFindPlayers = true;
-    
-    void Start()
+    private List<PlayerRob> allPlayers = new List<PlayerRob>();
+    private bool crownsAssigned = false;
+
+    public static CrownGameManager Instance { get; private set; }
+
+    void Awake()
     {
-        if (autoFindPlayers)
+        if (Instance != null && Instance != this)
         {
-            FindAllPlayers();
+            Destroy(gameObject);
+            return;
+        }
+        Instance = this;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+        if (!IsServer) return;
+
+        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        StartCoroutine(InitialCheckDelayed());
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        }
+    }
+
+    System.Collections.IEnumerator InitialCheckDelayed()
+    {
+        yield return new WaitForSeconds(delayBeforeAssign);
+        
+        var lanLobby = LanLobbyState.Instance;
+        if (lanLobby != null)
+        {
+            while (!lanLobby.GameStarted.Value)
+            {
+                yield return new WaitForSeconds(0.2f);
+            }
         }
         
-        AssignRandomCrowns();
+        FindAllPlayers();
+        TryAssignCrowns();
     }
-    
+
+    void OnClientConnected(ulong clientId)
+    {
+        if (!IsServer) return;
+        StartCoroutine(CheckAndAssignCrownsDelayed());
+    }
+
+    System.Collections.IEnumerator CheckAndAssignCrownsDelayed()
+    {
+        yield return new WaitForSeconds(delayBeforeAssign);
+        FindAllPlayers();
+        TryAssignCrowns();
+    }
+
     void FindAllPlayers()
     {
         allPlayers.Clear();
-         PlayerRob[] players = FindObjectsByType<PlayerRob>(FindObjectsSortMode.None);
-        allPlayers.AddRange(players);
+        PlayerRob[] players = FindObjectsByType<PlayerRob>(FindObjectsSortMode.None);
         
-        Debug.Log($"Se encontraron {allPlayers.Count} jugadores");
-    }
-        
-    void AssignRandomCrowns()
-    {
-        if (allPlayers.Count == 0)
+        foreach (var player in players)
         {
-            Debug.LogWarning("No hay jugadores para asignar coronas!");
-            return;
+            var netObj = player.GetComponent<NetworkObject>();
+            if (netObj != null && netObj.IsSpawned)
+            {
+                allPlayers.Add(player);
+            }
         }
         
-        // Asegurarse de que no asignemos más coronas que jugadores
-        int crownsToAssign = Mathf.Min(numberOfCrowns, allPlayers.Count);
+        Debug.Log($"[CrownGameManager] Jugadores encontrados: {allPlayers.Count}");
+    }
+
+    void TryAssignCrowns()
+    {
+        if (!IsServer || crownsAssigned) return;
+
+        int expectedPlayers = GetExpectedPlayerCount();
         
-        // Crear una lista temporal para selección aleatoria
+        Debug.Log($"[CrownGameManager] Jugadores: {allPlayers.Count}/{expectedPlayers}");
+
+        if (allPlayers.Count >= expectedPlayers && expectedPlayers > 0)
+        {
+            AssignCrownsByPercentage();
+        }
+    }
+
+    int GetExpectedPlayerCount()
+    {
+        var lanLobby = LanLobbyState.Instance;
+        if (lanLobby != null && lanLobby.Players.Count > 0)
+        {
+            return lanLobby.Players.Count;
+        }
+
+        if (NetworkManager.Singleton != null)
+        {
+            return NetworkManager.Singleton.ConnectedClientsIds.Count;
+        }
+
+        return 0;
+    }
+
+    void AssignCrownsByPercentage()
+    {
+        if (!IsServer || allPlayers.Count == 0) return;
+
+        int totalPlayers = allPlayers.Count;
+        int crownsToAssign = Mathf.Max(1, Mathf.RoundToInt(totalPlayers * (crownPercentage / 100f)));
+        crownsToAssign = Mathf.Min(crownsToAssign, totalPlayers);
+
+        Debug.Log($"[CrownGameManager] Asignando {crownsToAssign} coronas ({crownPercentage}%) entre {totalPlayers} jugadores");
+
+        foreach (PlayerRob player in allPlayers)
+        {
+            player.SetCrownDirect(false);
+        }
+
         List<PlayerRob> availablePlayers = new List<PlayerRob>(allPlayers);
         
-        // Primero, quitar todas las coronas
-        foreach (PlayerRob player in allPlayers)
+        for (int i = availablePlayers.Count - 1; i > 0; i--)
         {
-            player.SetCrown(false);
+            int randomIndex = Random.Range(0, i + 1);
+            PlayerRob temp = availablePlayers[i];
+            availablePlayers[i] = availablePlayers[randomIndex];
+            availablePlayers[randomIndex] = temp;
         }
-        
-        // Asignar coronas aleatorias
+
         for (int i = 0; i < crownsToAssign; i++)
         {
-            int randomIndex = Random.Range(0, availablePlayers.Count);
-            PlayerRob selectedPlayer = availablePlayers[randomIndex];
-            
-            selectedPlayer.SetCrown(true);
-            availablePlayers.RemoveAt(randomIndex);
-            
-            Debug.Log($"{selectedPlayer.gameObject.name} comienza con corona!");
+            availablePlayers[i].SetCrownDirect(true);
+            Debug.Log($"[CrownGameManager] Corona asignada a jugador {i + 1}");
         }
+
+        crownsAssigned = true;
     }
-    
-    // Método público para reiniciar el juego
-    public void RestartGame()
+
+    public void ForceReassignCrowns()
     {
-        if (autoFindPlayers)
-        {
-            FindAllPlayers();
-        }
-        AssignRandomCrowns();
-    }
-    
-    // Obtener estadísticas del juego
-    public int GetPlayersWithCrown()
-    {
-        int count = 0;
-        foreach (PlayerRob player in allPlayers)
-        {
-            if (player.HasCrown())
-                count++;
-        }
-        return count;
+        if (!IsServer) return;
+        crownsAssigned = false;
+        FindAllPlayers();
+        AssignCrownsByPercentage();
     }
 }
