@@ -3,8 +3,8 @@ using System.Collections;
 
 public class TurboSprint : PowerUp
 {
-    public float speedMultiplier = 2f;   // Qué tanto aumenta la velocidad
-    public float duration = 6f;          // Cuánto dura el poder
+    public float speedMultiplier = 3f;   // Qué tanto aumenta la velocidad
+    public float effectDuration = 6f;          // Cuánto dura el poder
 
     private FirstPersonController playerController;
     private bool isCollected = false;
@@ -34,7 +34,7 @@ public class TurboSprint : PowerUp
         playerController.walkSpeed *= speedMultiplier;
 
         // Espera el tiempo de duración del poder
-        yield return new WaitForSeconds(duration);
+        yield return new WaitForSeconds(effectDuration);
 
         // Vuelve la velocidad a la normalidad
         playerController.walkSpeed = originalSpeed;

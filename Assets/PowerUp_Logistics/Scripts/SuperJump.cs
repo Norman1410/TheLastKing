@@ -3,8 +3,8 @@ using System.Collections;
 
 public class SuperJump : PowerUp
 {
-    public float jumpMultiplier = 3f;   // Qué tanto aumenta el salto
-    public float duration = 6f;         // Cuánto dura el poder
+    public float jumpMultiplier = 4f;   // Qué tanto aumenta el salto
+    public float effectDuration = 6f;         // Cuánto dura el poder
 
     private FirstPersonController playerController;
     private bool isCollected = false;
@@ -36,7 +36,7 @@ public class SuperJump : PowerUp
         playerController.jumpHeight *= jumpMultiplier;
 
         // Espera el tiempo de duración
-        yield return new WaitForSeconds(duration);
+        yield return new WaitForSeconds(effectDuration);
 
         // Restaura el salto original
         playerController.jumpHeight = originalJump;
