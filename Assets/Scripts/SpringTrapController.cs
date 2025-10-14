@@ -41,12 +41,15 @@ public class SpringTrapController : MonoBehaviour
         // 1. Abrir la Escotilla: Desactiva Kinematic para que la puerta caiga por gravedad
         hatchDoorRigidbody.isKinematic = false;
 
+
         // Obtener la referencia al script de movimiento del jugador UNA VEZ
         // (Tu script se llama FirstPersonController)
         FirstPersonController fpc = player.GetComponent<FirstPersonController>();
 
         // Espera un instante para que la puerta caiga y el jugador caiga al Spring Pad
         yield return new WaitForSeconds(0.1f);
+
+
 
         // 2. Activar el Resorte: Lo mueve rápidamente hacia la posición de lanzamiento
         float t = 0;
@@ -56,6 +59,7 @@ public class SpringTrapController : MonoBehaviour
         {
             t += Time.deltaTime / springDuration;
             springPadTransform.localPosition = Vector3.Lerp(currentPos, springLaunchPos, t);
+
 
             // *** LÓGICA DE LANZAMIENTO INTEGRADA EN EL MOVIMIENTO DEL RESORTE ***
             if (fpc != null)
@@ -84,6 +88,7 @@ public class SpringTrapController : MonoBehaviour
 
         // (La Sección 3 anterior fue eliminada, ya que la lógica se movió al bucle anterior)
 
+
         // 4. Reiniciar el Resorte: Vuelve a la posición inicial
         yield return new WaitForSeconds(0.5f); // Pausa visual
         t = 0;
@@ -95,9 +100,11 @@ public class SpringTrapController : MonoBehaviour
             springPadTransform.localPosition = Vector3.Lerp(currentPos, springStartPos, t);
             yield return null;
         }
+
         
         // **AÑADIDO:** Coloca la tapa inmediatamente para que el tiempo de espera no se vea mal
         hatchDoorRigidbody.transform.localPosition = Vector3.zero;
+
 
         // 5. Esperar el Reinicio de la Tapa (simulando que un mecanismo la devuelve)
         yield return new WaitForSeconds(resetDelay);
