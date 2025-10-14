@@ -128,13 +128,86 @@ public class LanLobbyState : NetworkBehaviour
     void RegisterSelfServerRpc(string displayName, ServerRpcParams rpc = default)
     {
         var cid = rpc.Receive.SenderClientId;
+        Debug.Log($"[LanLobbyState] RegisterSelfServerRpc from {cid} with name '{displayName}'");
 
+        // Update existing entry if present
         for (int i = 0; i < Players.Count; i++)
+        {
             if (Players[i].ClientId == cid)
-            { var e = Players[i]; e.Name = displayName; Players[i] = e; return; }
+            {
+                var e = Players[i]; e.Name = displayName; Players[i] = e;
+                var applied = UpdatePlayerObjectNetworkName(cid, displayName);
+                Debug.Log($"[LanLobbyState] Updated Players entry for {cid}. Applied to PlayerObject={applied}");
+                return;
+            }
+        }
 
+        // Add new entry
         Players.Add(new LanPlayerEntry { ClientId = cid, Name = displayName, Ready = false });
+
+        // Try to update playerobject now; if missing, start a retry coroutine
+        var appliedNow = UpdatePlayerObjectNetworkName(cid, displayName);
+        Debug.Log($"[LanLobbyState] Added Players entry for {cid}. Applied to PlayerObject now={appliedNow}");
+        if (!appliedNow)
+        {
+            // start retry coroutine on server
+            StartCoroutine(RetryApplyNameToPlayerObject(cid, displayName));
+        }
+
+        // Debug: print current Players list
+        Debug.Log($"[LanLobbyState] Players list after RegisterSelf: count={Players.Count}");
+        for (int i = 0; i < Players.Count; i++)
+            Debug.Log($"  Player[{i}] ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
     }
+
+    // Returns true if applied, false if no playerobject found
+    bool UpdatePlayerObjectNetworkName(ulong clientId, string displayName)
+    {
+    // If the player's PlayerObject is spawned on the server, set its PlayerNetworkName.DisplayName
+    if (!IsServer) return false;
+    if (NetworkManager == null) return false;
+        if (NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
+        {
+            var po = cc.PlayerObject;
+            if (po != null && po.IsSpawned)
+            {
+                var pnn = po.GetComponent<PlayerNetworkDisplayName>();
+                if (pnn != null)
+                {
+                    pnn.DisplayName.Value = new Unity.Collections.FixedString64Bytes(displayName ?? "Jugador");
+                    Debug.Log($"[LanLobbyState] Applied DisplayName='{displayName}' to PlayerObject for client {clientId}");
+                    return true;
+                }
+                else
+                {
+                    Debug.Log($"[LanLobbyState] PlayerObject for client {clientId} has no PlayerNetworkDisplayName component");
+                }
+            }
+            else
+            {
+                Debug.Log($"[LanLobbyState] PlayerObject for client {clientId} is null or not spawned (po={po})");
+            }
+        }
+        else
+        {
+            Debug.Log($"[LanLobbyState] No connected client entry for clientId {clientId}");
+        }
+
+        return false;
+    }
+
+    System.Collections.IEnumerator RetryApplyNameToPlayerObject(ulong clientId, string displayName)
+    {
+        const int attempts = 10;
+        const float delay = 0.5f;
+        for (int i = 0; i < attempts; i++)
+        {
+            if (UpdatePlayerObjectNetworkName(clientId, displayName)) yield break;
+            yield return new WaitForSeconds(delay);
+        }
+        Debug.LogWarning($"[LanLobbyState] Could not apply displayName '{displayName}' to PlayerObject for client {clientId} after retries.");
+    }
+
 
     [ServerRpc(RequireOwnership = false)]
     public void ToggleReadyServerRpc(bool value, ServerRpcParams rpc = default)
@@ -339,6 +412,22 @@ public class LanLobbyState : NetworkBehaviour
         no.SpawnAsPlayerObject(clientId, destroyWithScene: true);
 
         Debug.Log($"[LAN] SpawnAsPlayerObject -> client {clientId} en {pos}.");
+
+        // If we have a Players entry for this client, apply its name to the spawned PlayerObject
+        for (int i = 0; i < Players.Count; i++)
+        {
+            if (Players[i].ClientId == clientId)
+            {
+                var name = Players[i].Name.ToString();
+                var pnn = no.GetComponent<PlayerNetworkDisplayName>();
+                if (pnn != null)
+                {
+                    pnn.DisplayName.Value = new Unity.Collections.FixedString64Bytes(name ?? "Jugador");
+                    Debug.Log($"[LAN] Applied name '{name}' to PlayerObject of client {clientId}.");
+                }
+                break;
+            }
+        }
     }
 
 }
