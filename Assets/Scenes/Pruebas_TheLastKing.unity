@@ -2257,6 +2257,8 @@ MonoBehaviour:
   powerUpPrefabs:
   - {fileID: 7813452240099425719, guid: 500f8ba28551a464fa09750b31f142e3, type: 3}
   - {fileID: 2396345212421987751, guid: 3f0202cc031f8b24ba5c084e8ea8eeaf, type: 3}
+  - {fileID: 3524565760851017240, guid: 191dccb211a3e504fa038ecb80b2a234, type: 3}
+  - {fileID: 6322971991296647575, guid: 912b1558960138c44a5d11d3719aa3e9, type: 3}
   respawnTime: 7
 --- !u!1001 &1492163742
 PrefabInstance:
