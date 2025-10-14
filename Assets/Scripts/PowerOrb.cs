@@ -43,9 +43,27 @@ public class PowerOrb : MonoBehaviour
     
     private void OnTriggerEnter(Collider other)
     {
-        
         if (other.CompareTag("Player") && !hasBeenCollected)
         {
+            // mark immediately to avoid multiple triggers racing
+            // but only if there is an available slot; otherwise ignore
+            if (powerManager != null && !powerManager.HasAvailableSlot())
+            {
+                Debug.Log("PowerOrb: player touched but no available power slots.");
+                return;
+            }
+
+            hasBeenCollected = true;
+
+            // disable collider immediately to avoid duplicate triggers
+            if (orbCollider != null) orbCollider.enabled = false;
+
+            // hide visuals immediately
+            if (meshRenderer != null) meshRenderer.enabled = false;
+
+            Debug.Log($"PowerOrb: {gameObject.name} collected by {other.gameObject.name}");
+
+            // perform power collection
             CollectPower();
         }
     }
@@ -54,23 +72,19 @@ public class PowerOrb : MonoBehaviour
     {
         if (powerManager != null && powerManager.HasAvailableSlot())
         {
-            // Add power to HUD
-            powerManager.AddPower(powerType);
-            
-            // Mark as temporarily collected
-            hasBeenCollected = true;
-            
-            // Hide the orb
-            HideOrb();
-            
+            // Add power to HUD (pass this instance so PowerManager can dedupe)
+            powerManager.AddPower(powerType, gameObject);
+
             // Schedule respawn
             StartCoroutine(RespawnOrb());
-            
+
             Debug.Log($"Power {powerType} collected. Will respawn in {respawnTime} seconds.");
         }
-        else if (!powerManager.HasAvailableSlot())
+        else
         {
             Debug.Log("Can't collect more powers, slots are full!");
+            // revert state so orb can be collected later
+            ShowOrb();
         }
     }
     
