@@ -5,18 +5,14 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
-    path: Assets/Scenes/PrincipalMenu.unity
-    guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 0
-    path: Assets/Scenes/LobbyNet.unity
-    guid: 0383325a1f315a14cacf5ed0128af02a
+    path: Assets/Scenes/PrincipalMenu.unity
+    guid: a070174f3571f1845a8db9f42f375f32
+  - enabled: 1
+    path: Assets/Scenes/Game.unity
+    guid: 6a764d08b58461640a8e3fc5d6214c76
   - enabled: 1
     path: Assets/Scenes/Pruebas_TheLastKing.unity
     guid: 60faa8a8ae1fabd4280941a41d70a550
-  - enabled: 0
-    path: Assets/Scenes/Game.unity
-    guid: 6a764d08b58461640a8e3fc5d6214c76
-  m_configObjects:
-    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: c089398ca7814894d964be7ecaa209d1, type: 3}
+  m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

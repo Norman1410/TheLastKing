@@ -5,9 +5,9 @@ using UnityEngine.InputSystem;
 public class FirstPersonController : MonoBehaviour
 {
     [Header("Movement Settings")]
-    [SerializeField] private float walkSpeed = 5f;
-    [SerializeField] private float runSpeed = 8f;
-    [SerializeField] private float jumpHeight = 2f;
+    [SerializeField] public float walkSpeed = 5f;
+    [SerializeField] public float runSpeed = 8f;
+    [SerializeField] public float jumpHeight = 2f;
     [SerializeField] private float gravity = -9.81f;
     
     [Header("Mouse Look Settings")]
