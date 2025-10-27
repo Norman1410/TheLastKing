@@ -50,12 +50,15 @@ public class FirstPersonController : MonoBehaviour
         
         // Si no se asignó un animator, intentar encontrarlo
         if (animator == null)
-        {
+        {   
+            Debug.LogWarning("Animator not assigned! Trying to find one in children.");
             animator = GetComponent<Animator>();
             if (animator == null)
             {
                 animator = GetComponentInChildren<Animator>();
             }
+        }else {
+            Debug.Log("Animator assigned via inspector.");
         }
         
         // Create and setup input actions
@@ -159,9 +162,10 @@ public class FirstPersonController : MonoBehaviour
         // Calculate movement direction based on input
         float currentSpeed = isRunning ? runSpeed : walkSpeed;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-        
+
         // Apply movement
         controller.Move(move * currentSpeed * Time.deltaTime);
+        bool isMoving = moveInput.magnitude > 0.1f;
         
         // Apply gravity
         velocity.y += gravity * Time.deltaTime;
@@ -197,20 +201,15 @@ public class FirstPersonController : MonoBehaviour
     {
         if (!useAnimations || animator == null) return;
 
+        Debug.Log("Updating animations.");
+
         // Calcular si el personaje se está moviendo
         bool isMoving = moveInput.magnitude > 0.1f;
 
         // Actualizar parámetros del Animator
-        animator.SetBool("IsWalking", isMoving && !isRunning);
-        animator.SetBool("IsRunning", isMoving && isRunning);
-        animator.SetBool("IsJumping", isJumping);
+        animator.SetBool("isWalking", isMoving && !isRunning);
+        Debug.Log($"Set isWalking to {isMoving && !isRunning}");
 
-        // Opcional: también puedes enviar la velocidad como un float para blend trees
-        float speed = isMoving ? (isRunning ? runSpeed : walkSpeed) : 0f;
-        animator.SetFloat("Speed", speed);
-
-        // Opcional: enviar el estado de grounded
-        animator.SetBool("IsGrounded", isGrounded);
     }
     
     // Input callback methods
@@ -262,7 +261,7 @@ public class FirstPersonController : MonoBehaviour
         }
         
 
-        
+
         // Visualizar la dirección de la cámara
         if (playerCamera != null)
         {
