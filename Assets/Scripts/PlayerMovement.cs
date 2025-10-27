@@ -35,6 +35,7 @@ public class FirstPersonController : MonoBehaviour
     private Vector3 velocity;
     private bool isGrounded;
     private bool isRunning;
+    private bool isMoving;
     private bool wasGrounded;
     private bool isJumping;
     
@@ -165,7 +166,8 @@ public class FirstPersonController : MonoBehaviour
 
         // Apply movement
         controller.Move(move * currentSpeed * Time.deltaTime);
-        bool isMoving = moveInput.magnitude > 0.1f;
+        isMoving = moveInput.magnitude > 0.1f;
+        animator.SetBool("isWalking", isMoving);
         
         // Apply gravity
         velocity.y += gravity * Time.deltaTime;
@@ -204,11 +206,11 @@ public class FirstPersonController : MonoBehaviour
         Debug.Log("Updating animations.");
 
         // Calcular si el personaje se está moviendo
-        bool isMoving = moveInput.magnitude > 0.1f;
+        isMoving = moveInput.magnitude > 0.1f;
 
         // Actualizar parámetros del Animator
-        animator.SetBool("isWalking", isMoving && !isRunning);
-        Debug.Log($"Set isWalking to {isMoving && !isRunning}");
+        animator.SetBool("isWalking", isMoving);
+        Debug.Log($"Set isWalking to {isMoving}");
 
     }
     
@@ -293,6 +295,16 @@ public class FirstPersonController : MonoBehaviour
         }
 
         walkSpeed = newSpeed;
+    }
+
+    void OnGUI()
+    {
+        // ESQUINA INFERIOR IZQUIERDA
+        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
+
+        GUILayout.Label($"isWalking: {isMoving}");
+        
+        GUILayout.EndArea();
     }
     
     // Métodos públicos para obtener el estado (útiles para otros scripts)
