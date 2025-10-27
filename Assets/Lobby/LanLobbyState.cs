@@ -24,8 +24,8 @@ public class LanLobbyState : NetworkBehaviour
 {
     public static LanLobbyState Instance;
 
-    [Header("Gameplay Scene Name (leave current scene name to spawn in same scene)")]
-    [SerializeField] string gameplaySceneName = "Game";
+    [Header("Misma escena: deja el nombre actual")]
+    [SerializeField] string gameplaySceneName = "SampleScene";
 
     public NetworkList<LanPlayerEntry> Players;
     public readonly NetworkVariable<bool> GameStarted =
@@ -61,11 +61,7 @@ public class LanLobbyState : NetworkBehaviour
         }
 
         if (IsClient)
-        {
             RegisterSelfServerRpc(PlayerName.Get());
-            // subscribe to local scene load so client can notify server when it finished loading gameplay scene
-            UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnLocalSceneLoaded;
-        }
     }
 
     public override void OnNetworkDespawn()
@@ -76,38 +72,6 @@ public class LanLobbyState : NetworkBehaviour
             NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
             NetworkManager.SceneManager.OnLoadEventCompleted -= OnLoadEventCompleted;
         }
-        if (IsClient)
-        {
-            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnLocalSceneLoaded;
-        }
-    }
-
-    bool _reportedReadyForSpawn = false;
-
-    void OnLocalSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
-    {
-        // Only run on clients
-        if (!IsClient) return;
-
-        if (!string.Equals(scene.name, gameplaySceneName)) return;
-
-        // If the game hasn't been started by host, ignore
-        if (!GameStarted.Value) return;
-
-        if (_reportedReadyForSpawn) return;
-
-        _reportedReadyForSpawn = true;
-        Debug.Log($"[LanLobbyState] Client local scene loaded ('{scene.name}'). Reporting ready to server.");
-        ClientReadyForSpawnServerRpc();
-    }
-
-    [ServerRpc(RequireOwnership = false)]
-    void ClientReadyForSpawnServerRpc(ServerRpcParams rpc = default)
-    {
-        if (!IsServer) return;
-        var cid = rpc.Receive.SenderClientId;
-        Debug.Log($"[LanLobbyState] Received ClientReadyForSpawnServerRpc from {cid}. Spawning if missing.");
-        SpawnPlayerIfMissing(cid);
     }
 
     void OnClientConnected(ulong clientId)
@@ -128,86 +92,13 @@ public class LanLobbyState : NetworkBehaviour
     void RegisterSelfServerRpc(string displayName, ServerRpcParams rpc = default)
     {
         var cid = rpc.Receive.SenderClientId;
-        Debug.Log($"[LanLobbyState] RegisterSelfServerRpc from {cid} with name '{displayName}'");
 
-        // Update existing entry if present
         for (int i = 0; i < Players.Count; i++)
-        {
             if (Players[i].ClientId == cid)
-            {
-                var e = Players[i]; e.Name = displayName; Players[i] = e;
-                var applied = UpdatePlayerObjectNetworkName(cid, displayName);
-                Debug.Log($"[LanLobbyState] Updated Players entry for {cid}. Applied to PlayerObject={applied}");
-                return;
-            }
-        }
+            { var e = Players[i]; e.Name = displayName; Players[i] = e; return; }
 
-        // Add new entry
         Players.Add(new LanPlayerEntry { ClientId = cid, Name = displayName, Ready = false });
-
-        // Try to update playerobject now; if missing, start a retry coroutine
-        var appliedNow = UpdatePlayerObjectNetworkName(cid, displayName);
-        Debug.Log($"[LanLobbyState] Added Players entry for {cid}. Applied to PlayerObject now={appliedNow}");
-        if (!appliedNow)
-        {
-            // start retry coroutine on server
-            StartCoroutine(RetryApplyNameToPlayerObject(cid, displayName));
-        }
-
-        // Debug: print current Players list
-        Debug.Log($"[LanLobbyState] Players list after RegisterSelf: count={Players.Count}");
-        for (int i = 0; i < Players.Count; i++)
-            Debug.Log($"  Player[{i}] ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
     }
-
-    // Returns true if applied, false if no playerobject found
-    bool UpdatePlayerObjectNetworkName(ulong clientId, string displayName)
-    {
-    // If the player's PlayerObject is spawned on the server, set its PlayerNetworkName.DisplayName
-    if (!IsServer) return false;
-    if (NetworkManager == null) return false;
-        if (NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
-        {
-            var po = cc.PlayerObject;
-            if (po != null && po.IsSpawned)
-            {
-                var pnn = po.GetComponent<PlayerNetworkDisplayName>();
-                if (pnn != null)
-                {
-                    pnn.DisplayName.Value = new Unity.Collections.FixedString64Bytes(displayName ?? "Jugador");
-                    Debug.Log($"[LanLobbyState] Applied DisplayName='{displayName}' to PlayerObject for client {clientId}");
-                    return true;
-                }
-                else
-                {
-                    Debug.Log($"[LanLobbyState] PlayerObject for client {clientId} has no PlayerNetworkDisplayName component");
-                }
-            }
-            else
-            {
-                Debug.Log($"[LanLobbyState] PlayerObject for client {clientId} is null or not spawned (po={po})");
-            }
-        }
-        else
-        {
-            Debug.Log($"[LanLobbyState] No connected client entry for clientId {clientId}");
-        }
-
-        return false;
-    }
-
-    System.Collections.IEnumerator RetryApplyNameToPlayerObject(ulong clientId, string displayName)
-    {
-        const int attempts = 10;
-        const float delay = 0.5f;
-        for (int i = 0; i < attempts; i++)
-        {
-            if (UpdatePlayerObjectNetworkName(clientId, displayName)) yield break;
-            yield return new WaitForSeconds(delay);
-        }
-        Debug.LogWarning($"[LanLobbyState] Could not apply displayName '{displayName}' to PlayerObject for client {clientId} after retries.");
-    }
-
 
     [ServerRpc(RequireOwnership = false)]
     public void ToggleReadyServerRpc(bool value, ServerRpcParams rpc = default)
@@ -221,63 +112,28 @@ public class LanLobbyState : NetworkBehaviour
     public bool AllReady()
     {
         if (Players.Count == 0) return false;
-        
-        // Host doesn't need to be ready, only clients
         for (int i = 0; i < Players.Count; i++)
-        {
-            // Skip the host (server's client ID)
-            if (Players[i].ClientId == NetworkManager.ServerClientId)
-                continue;
-                
-            if (!Players[i].Ready) 
-                return false;
-        }
-        
+            if (!Players[i].Ready) return false;
         return true;
     }
 
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
-        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={AllReady()}");
-        
-        if (!IsServer)
-        {
-            Debug.LogWarning("[LanLobbyState] Cannot start match: Not server");
-            return;
-        }
-        
-        if (!AllReady())
-        {
-            Debug.LogWarning("[LanLobbyState] Cannot start match: Not all players are ready");
-            LogPlayerStates();
-            return;
-        }
+        if (!IsServer || !AllReady()) return;
 
-        Debug.Log("[LanLobbyState] Starting match...");
         GameStarted.Value = true;
+        
+        Debug.Log("[LanLobbyState] Iniciando partida. Spawneando jugadores...");
 
         var current = SceneManager.GetActiveScene().name;
-        Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {gameplaySceneName}");
-        
         if (string.Equals(current, gameplaySceneName))
         {
-            Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
             SpawnAllPlayersNow(); // misma escena
         }
         else
         {
-            Debug.Log($"[LanLobbyState] Loading scene: {gameplaySceneName}");
             NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
-        }
-    }
-    
-    void LogPlayerStates()
-    {
-        Debug.Log($"[LanLobbyState] Player count: {Players.Count}");
-        for (int i = 0; i < Players.Count; i++)
-        {
-            Debug.Log($"  Player {i}: ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
         }
     }
 
@@ -290,55 +146,7 @@ public class LanLobbyState : NetworkBehaviour
         if (!GameStarted.Value) return;
         if (!string.Equals(sceneName, gameplaySceneName)) return;
 
-        Debug.Log($"[LanLobbyState] OnLoadEventCompleted for scene '{sceneName}'. Completed: {clientsCompleted.Count}, TimedOut: {clientsTimedOut.Count}");
-        if (clientsCompleted != null && clientsCompleted.Count > 0)
-        {
-            foreach (var cid in clientsCompleted)
-            {
-                Debug.Log($"[LanLobbyState] Spawning player for completed client {cid}");
-                SpawnPlayerIfMissing(cid);
-            }
-        }
-
-        if (clientsTimedOut != null && clientsTimedOut.Count > 0)
-        {
-            foreach (var cid in clientsTimedOut)
-            {
-                Debug.LogWarning($"[LanLobbyState] Client {cid} timed out while loading scene. Will retry spawn later when they finish loading.");
-            }
-        }
-
-        // Start a short retry loop to cover clients that finish loading a bit later
-        StartCoroutine(RetrySpawnMissingPlayers());
-    }
-
-    System.Collections.IEnumerator RetrySpawnMissingPlayers()
-    {
-        const int maxAttempts = 20; // ~10 seconds with delay 0.5s
-        const float delay = 0.5f;
-
-        for (int attempt = 0; attempt < maxAttempts; attempt++)
-        {
-            bool allSpawned = true;
-            foreach (var clientId in NetworkManager.ConnectedClientsIds)
-            {
-                if (NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
-                {
-                    if (cc.PlayerObject == null || !cc.PlayerObject.IsSpawned)
-                    {
-                        // Try to spawn; SpawnPlayerIfMissing contains its own checks and logs
-                        SpawnPlayerIfMissing(clientId);
-                        // If we attempted spawn, assume not all spawned yet
-                        allSpawned = false;
-                    }
-                }
-            }
-
-            if (allSpawned) yield break;
-            yield return new WaitForSeconds(delay);
-        }
-
-        Debug.LogWarning("[LanLobbyState] RetrySpawnMissingPlayers finished: some clients may not have PlayerObjects spawned.");
+        SpawnAllPlayersNow();
     }
 
     void SpawnAllPlayersNow()
@@ -375,7 +183,7 @@ public class LanLobbyState : NetworkBehaviour
         Vector3 pos = Vector3.zero;
         Quaternion rot = Quaternion.identity;
 
-    var spRoot = UnityEngine.Object.FindAnyObjectByType<NetworkSpawnPoints>();
+        var spRoot = FindObjectOfType<NetworkSpawnPoints>();
         if (spRoot != null)
         {
             var t = spRoot.transform;
@@ -412,22 +220,6 @@ public class LanLobbyState : NetworkBehaviour
         no.SpawnAsPlayerObject(clientId, destroyWithScene: true);
 
         Debug.Log($"[LAN] SpawnAsPlayerObject -> client {clientId} en {pos}.");
-
-        // If we have a Players entry for this client, apply its name to the spawned PlayerObject
-        for (int i = 0; i < Players.Count; i++)
-        {
-            if (Players[i].ClientId == clientId)
-            {
-                var name = Players[i].Name.ToString();
-                var pnn = no.GetComponent<PlayerNetworkDisplayName>();
-                if (pnn != null)
-                {
-                    pnn.DisplayName.Value = new Unity.Collections.FixedString64Bytes(name ?? "Jugador");
-                    Debug.Log($"[LAN] Applied name '{name}' to PlayerObject of client {clientId}.");
-                }
-                break;
-            }
-        }
     }
 
 }

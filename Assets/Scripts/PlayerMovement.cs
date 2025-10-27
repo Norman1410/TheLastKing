@@ -192,23 +192,23 @@ public class FirstPersonController : MonoBehaviour
             Debug.LogWarning("Player Camera is not assigned! Please assign it in the inspector.");
         }
     }
-    
+
     private void UpdateAnimations()
     {
         if (!useAnimations || animator == null) return;
-        
+
         // Calcular si el personaje se está moviendo
         bool isMoving = moveInput.magnitude > 0.1f;
-        
+
         // Actualizar parámetros del Animator
         animator.SetBool("IsWalking", isMoving && !isRunning);
         animator.SetBool("IsRunning", isMoving && isRunning);
         animator.SetBool("IsJumping", isJumping);
-        
+
         // Opcional: también puedes enviar la velocidad como un float para blend trees
         float speed = isMoving ? (isRunning ? runSpeed : walkSpeed) : 0f;
         animator.SetFloat("Speed", speed);
-        
+
         // Opcional: enviar el estado de grounded
         animator.SetBool("IsGrounded", isGrounded);
     }
@@ -261,6 +261,8 @@ public class FirstPersonController : MonoBehaviour
             Gizmos.DrawWireSphere(rayEnd, 0.1f);
         }
         
+
+        
         // Visualizar la dirección de la cámara
         if (playerCamera != null)
         {
@@ -268,7 +270,7 @@ public class FirstPersonController : MonoBehaviour
             Gizmos.DrawRay(playerCamera.transform.position, playerCamera.transform.forward * 2f);
         }
     }
-    
+
     // Método público para permitir/bloquear el movimiento del mouse (útil para menús)
     public void SetCursorLock(bool locked)
     {
@@ -276,9 +278,29 @@ public class FirstPersonController : MonoBehaviour
         Cursor.visible = !locked;
     }
     
+    // Getter y Setter públicos para walkSpeed
+    public float GetWalkSpeed()
+    {
+        return walkSpeed;
+    }
+
+    public void SetWalkSpeed(float newSpeed)
+    {
+        // Validar que no sea un valor negativo ni cero
+        if (newSpeed < 0)
+        {
+            Debug.LogWarning("El valor de walkSpeed no puede ser negativo. Se mantendrá el valor anterior.");
+            return;
+        }
+
+        walkSpeed = newSpeed;
+    }
+    
     // Métodos públicos para obtener el estado (útiles para otros scripts)
     public bool IsGrounded() => isGrounded;
     public bool IsRunning() => isRunning;
     public bool IsJumping() => isJumping;
     public bool IsWalking() => moveInput.magnitude > 0.1f && !isRunning;
+
+    
 }
