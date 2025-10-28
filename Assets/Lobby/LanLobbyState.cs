@@ -30,6 +30,12 @@ public class LanLobbyState : NetworkBehaviour
     public NetworkList<LanPlayerEntry> Players;
     public readonly NetworkVariable<bool> GameStarted =
         new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    
+    // Timer sync: when host starts timer, set this so late-joining clients can start their timer too
+    public readonly NetworkVariable<int> TimerDuration =
+        new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    public readonly NetworkVariable<bool> TimerActive =
+        new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
 
     void Awake()
     {
@@ -65,6 +71,16 @@ public class LanLobbyState : NetworkBehaviour
             RegisterSelfServerRpc(PlayerName.Get());
             // subscribe to local scene load so client can notify server when it finished loading gameplay scene
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnLocalSceneLoaded;
+            
+            // Subscribe to timer state changes so late-joining clients can start their timer
+            TimerActive.OnValueChanged += OnTimerActiveChanged;
+            
+            // If timer is already active when we spawn, start it immediately
+            if (TimerActive.Value && TimerDuration.Value > 0)
+            {
+                Debug.Log($"[LanLobbyState] Client spawned with timer already active ({TimerDuration.Value}s). Starting client timer...");
+                StartClientTimer(TimerDuration.Value);
+            }
         }
     }
 
@@ -79,6 +95,57 @@ public class LanLobbyState : NetworkBehaviour
         if (IsClient)
         {
             UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnLocalSceneLoaded;
+            TimerActive.OnValueChanged -= OnTimerActiveChanged;
+        }
+    }
+
+    void OnTimerActiveChanged(bool wasActive, bool isActive)
+    {
+        if (!IsClient || IsServer) return; // only run on pure clients
+        
+        if (isActive && TimerDuration.Value > 0)
+        {
+            Debug.Log($"[LanLobbyState] Client detected timer activated remotely ({TimerDuration.Value}s). Starting client timer...");
+            StartClientTimer(TimerDuration.Value);
+        }
+    }
+    
+    void StartClientTimer(int seconds)
+    {
+        var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
+        
+        // If no UI exists, create one at runtime
+        if (ct == null)
+        {
+            Debug.Log("[LanLobbyState] No CountdownTimerUI found on client, creating runtime UI...");
+            try
+            {
+                ct = CountdownTimerUI.CreateRuntimeTimerUI();
+                Debug.Log("[LanLobbyState] Runtime CountdownTimerUI created for client.");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[LanLobbyState] Failed to create runtime UI: " + ex);
+            }
+        }
+        
+        if (ct != null)
+        {
+            try
+            {
+                ct.EnsureAndStart(seconds);
+                Debug.Log($"[LanLobbyState] Client timer UI started with sprites for {seconds}s");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[LanLobbyState] ct.EnsureAndStart failed: " + e);
+                ct.gameObject.SetActive(true);
+                ct.StartTimer(seconds);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[LanLobbyState] Could not start client timer - CountdownTimerUI creation failed");
         }
     }
 
@@ -264,6 +331,8 @@ public class LanLobbyState : NetworkBehaviour
         {
             Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
             SpawnAllPlayersNow(); // misma escena
+            // Ensure timer starts on server even if we didn't change scenes
+            StartCoroutine(StartTimerAfterSpawn());
         }
         else
         {
@@ -310,6 +379,99 @@ public class LanLobbyState : NetworkBehaviour
 
         // Start a short retry loop to cover clients that finish loading a bit later
         StartCoroutine(RetrySpawnMissingPlayers());
+        
+        // After spawning players, start the timer on server and broadcast to clients
+        StartCoroutine(StartTimerAfterSpawn());
+    }
+    
+    System.Collections.IEnumerator StartTimerAfterSpawn()
+    {
+        // Wait a moment for spawn to complete
+        yield return new WaitForSeconds(1.5f);
+        
+        if (!IsServer) yield break;
+        
+        // Determine timer duration
+        int seconds = 180;
+        var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
+        if (ts != null) seconds = ts.roundDuration;
+        else 
+        { 
+            var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>(); 
+            if (ct != null) seconds = ct.durationSeconds; 
+        }
+        
+        Debug.Log($"[LanLobbyState] Starting timer for {seconds} seconds on server");
+        
+        // Update NetworkVariables so late-joining clients will see the timer state
+        TimerDuration.Value = seconds;
+        TimerActive.Value = true;
+        
+        // Start server's local timer using EnsureAndStart for sprite UI
+        var ctHost = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
+        if (ctHost != null)
+        {
+            try 
+            { 
+                ctHost.EnsureAndStart(seconds);
+                Debug.Log("[LanLobbyState] Server timer UI started with sprites");
+            }
+            catch (System.Exception e) 
+            { 
+                Debug.LogWarning("[LanLobbyState] ctHost.EnsureAndStart failed: " + e);
+                ctHost.gameObject.SetActive(true); 
+                ctHost.StartTimer(seconds); 
+            }
+        }
+        else if (ts != null)
+        {
+            ts.StartRound();
+        }
+        else
+        {
+                Debug.LogWarning("[LanLobbyState] No CountdownTimerUI or TimerStarter found on server - creating runtime TimerUI");
+                try
+                {
+                    var created = CountdownTimerUI.CreateRuntimeTimerUI();
+                    if (created != null)
+                    {
+                        created.EnsureAndStart(seconds);
+                        Debug.Log("[LanLobbyState] Created runtime TimerUI and started timer on server.");
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("[LanLobbyState] Failed to create runtime TimerUI: " + e);
+                }
+        }
+        
+        // Broadcast to clients via TimerNetworkMessaging (with detailed logs)
+        try
+        {
+            var tType = System.Type.GetType("TheLastKing.TimerNetworkMessaging, Assembly-CSharp");
+            if (tType != null)
+            {
+                // Use BroadcastStart which now logs each client individually
+                var mi = tType.GetMethod("BroadcastStart", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (mi != null) 
+                {
+                    mi.Invoke(null, new object[] { seconds });
+                    Debug.Log($"[LanLobbyState] BroadcastStart invoked for {seconds}s");
+                }
+                else
+                {
+                    Debug.LogWarning("[LanLobbyState] BroadcastStart method not found");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[LanLobbyState] TimerNetworkMessaging type not found");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[LanLobbyState] BroadcastStart failed: " + e);
+        }
     }
 
     System.Collections.IEnumerator RetrySpawnMissingPlayers()
@@ -375,27 +537,57 @@ public class LanLobbyState : NetworkBehaviour
         Vector3 pos = Vector3.zero;
         Quaternion rot = Quaternion.identity;
 
-    var spRoot = UnityEngine.Object.FindAnyObjectByType<NetworkSpawnPoints>();
-        if (spRoot != null)
+        var spRoot = UnityEngine.Object.FindAnyObjectByType<NetworkSpawnPoints>();
+        if (spRoot != null && spRoot.Count > 0)
         {
-            var t = spRoot.transform;
-            int total = t.childCount;
-            if (total > 0)
+            int total = spRoot.Count;
+            // índice estable: por defecto clientId % total
+            int idx = (int)(clientId % (ulong)total);
+
+            // Si tienes lista de Players (NetworkList<LanPlayerEntry>), intenta
+            // asignar por orden en esa lista para que host=0 tome el primer punto:
+            for (int i = 0; i < Players.Count; i++)
             {
-                // índice estable: por defecto clientId % total
-                int idx = (int)(clientId % (ulong)total);
-
-                // Si tienes lista de Players (NetworkList<LanPlayerEntry>), intenta
-                // asignar por orden en esa lista para que host=0 tome el primer punto:
-                for (int i = 0; i < Players.Count; i++)
-                {
-                    if (Players[i].ClientId == clientId) { idx = i % total; break; }
-                }
-
-                var p = t.GetChild(idx);
-                pos = p.position;
-                rot = p.rotation;
+                if (Players[i].ClientId == clientId) { idx = i % total; break; }
             }
+
+            // Try to find a free spawn index nearby; prefer idx but pick the first free slot
+            int chosen = -1;
+            for (int offset = 0; offset < total; offset++)
+            {
+                int tryIdx = (idx + offset) % total;
+                try
+                {
+                    if (spRoot.IsFree(tryIdx)) { chosen = tryIdx; break; }
+                }
+                catch { }
+            }
+
+            if (chosen == -1)
+            {
+                // none free; fallback to original idx
+                chosen = idx;
+                Debug.LogWarning($"[LAN] No free spawn points found. Using index {chosen} even if occupied.");
+            }
+
+            pos = spRoot.GetPoint(chosen);
+            rot = spRoot.GetRotation(chosen);
+            Debug.Log($"[LAN] Selected spawn point {chosen} for client {clientId} at {pos}");
+        }
+        else
+        {
+            // No spawn points defined in scene. Choose a safe fallback above ground near origin.
+            Debug.LogWarning("[LAN] No NetworkSpawnPoints found in scene. Using fallback spawn position.");
+            Vector3 fallback = new Vector3(0f, 3f, 0f);
+            // Try raycast down from above origin to find ground
+            RaycastHit hit;
+            if (Physics.Raycast(new Vector3(fallback.x, 50f, fallback.z), Vector3.down, out hit, 100f))
+            {
+                fallback.y = hit.point.y + 0.5f;
+                Debug.Log($"[LAN] Fallback spawn adjusted to ground at {fallback}");
+            }
+            pos = fallback;
+            rot = Quaternion.identity;
         }
 
         // Instanciar ya en la pose elegida
@@ -410,6 +602,18 @@ public class LanLobbyState : NetworkBehaviour
 
         // ¡Clave! Lo convertimos en el PlayerObject de ese cliente (host incluido)
         no.SpawnAsPlayerObject(clientId, destroyWithScene: true);
+
+        // Ensure the spawned object is positioned and its collider/controller enabled
+        try
+        {
+            no.transform.position = pos;
+            no.transform.rotation = rot;
+            var ccComp = no.GetComponent<CharacterController>();
+            if (ccComp != null && !ccComp.enabled) ccComp.enabled = true;
+            var rb = no.GetComponent<Rigidbody>();
+            if (rb != null) rb.isKinematic = false;
+        }
+        catch { }
 
         Debug.Log($"[LAN] SpawnAsPlayerObject -> client {clientId} en {pos}.");
 

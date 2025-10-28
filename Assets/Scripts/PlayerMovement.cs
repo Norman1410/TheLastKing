@@ -156,16 +156,23 @@ public class FirstPersonController : MonoBehaviour
     
     private void HandleMovement()
     {
+        // Guard: ensure CharacterController is present and active before calling Move
+        if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
+        {
+            // Avoid calling CharacterController.Move on an inactive/disabled controller
+            return;
+        }
+
         // Calculate movement direction based on input
         float currentSpeed = isRunning ? runSpeed : walkSpeed;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-        
-        // Apply movement
-        controller.Move(move * currentSpeed * Time.deltaTime);
-        
+
         // Apply gravity
         velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
+
+        // Combine horizontal movement and vertical velocity into a single Move call
+        Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
+        controller.Move(finalMovement * Time.deltaTime);
     }
     
     private void HandleMouseLook()
