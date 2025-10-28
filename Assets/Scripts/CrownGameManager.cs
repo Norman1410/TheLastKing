@@ -5,11 +5,45 @@ using Unity.Netcode;
 public class CrownGameManager : NetworkBehaviour
 {
     [Header("Game Settings")]
-    [SerializeField] [Range(1, 100)] private int crownPercentage = 33;
+    [SerializeField] [Range(0, 100)] private int crownPercentage = 33; // kept for compatibility but not used when using half rule
     [SerializeField] private float delayBeforeAssign = 1.5f;
     
     private List<PlayerRob> allPlayers = new List<PlayerRob>();
     private bool crownsAssigned = false;
+
+    // Public API: assign crowns to a specific list of players (used for round-to-round assignment)
+    public void AssignCrownsToPlayers(List<PlayerRob> players)
+    {
+        if (!IsServer || players == null || players.Count == 0) return;
+
+        int totalPlayers = players.Count;
+        int crownsToAssign = Mathf.Max(1, totalPlayers / 2);
+        crownsToAssign = Mathf.Clamp(crownsToAssign, 1, totalPlayers);
+
+        Debug.Log($"[CrownGameManager] AssignCrownsToPlayers: assigning {crownsToAssign} crowns among {totalPlayers} players");
+
+        // Clear crowns first
+        foreach (var p in players)
+        {
+            p.SetCrownDirect(false);
+        }
+
+        // Shuffle list
+        List<PlayerRob> availablePlayers = new List<PlayerRob>(players);
+        for (int i = availablePlayers.Count - 1; i > 0; i--)
+        {
+            int randomIndex = Random.Range(0, i + 1);
+            PlayerRob temp = availablePlayers[i];
+            availablePlayers[i] = availablePlayers[randomIndex];
+            availablePlayers[randomIndex] = temp;
+        }
+
+        for (int i = 0; i < crownsToAssign; i++)
+        {
+            availablePlayers[i].SetCrownDirect(true);
+            Debug.Log($"[CrownGameManager] Crown assigned to player index {i + 1}");
+        }
+    }
 
     public static CrownGameManager Instance { get; private set; }
 
@@ -121,10 +155,11 @@ public class CrownGameManager : NetworkBehaviour
         if (!IsServer || allPlayers.Count == 0) return;
 
         int totalPlayers = allPlayers.Count;
-        int crownsToAssign = Mathf.Max(1, Mathf.RoundToInt(totalPlayers * (crownPercentage / 100f)));
-        crownsToAssign = Mathf.Min(crownsToAssign, totalPlayers);
+        // New rule: assign half of the players as crowned (floor). If there are 0 after division, ensure at least 1.
+        int crownsToAssign = Mathf.Max(1, totalPlayers / 2);
+        crownsToAssign = Mathf.Clamp(crownsToAssign, 1, totalPlayers);
 
-        Debug.Log($"[CrownGameManager] Asignando {crownsToAssign} coronas ({crownPercentage}%) entre {totalPlayers} jugadores");
+        Debug.Log($"[CrownGameManager] Asignando {crownsToAssign} coronas (mitad de {totalPlayers}) entre {totalPlayers} jugadores");
 
         foreach (PlayerRob player in allPlayers)
         {

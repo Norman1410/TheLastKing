@@ -490,7 +490,7 @@ public class TimerNetworkMessaging : MonoBehaviour
         _fallbackTimerText.alignment = TextAnchor.MiddleCenter;
         _fallbackTimerText.fontSize = 48;
         _fallbackTimerText.color = Color.white;
-        _fallbackTimerText.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+    _fallbackTimerText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         _fallbackTimerText.text = "--:--";
 
         UnityEngine.Object.DontDestroyOnLoad(_fallbackTimerGO);
@@ -541,6 +541,21 @@ public class TimerNetworkMessaging : MonoBehaviour
     s_serverTimerActive = true;
     s_serverTimerDuration = seconds;
     s_serverTimerStartUtcMs = serverUtcMs;
+
+    // Ask LanLobbyState to start server-side authoritative timer so round-end logic runs server-side
+    try
+    {
+        var lan = UnityEngine.Object.FindAnyObjectByType<LanLobbyState>();
+        if (lan != null)
+        {
+            lan.StartServerTimerPublic(seconds);
+            Debug.Log($"TimerNetworkMessaging: Requested LanLobbyState to start server timer for {seconds}s");
+        }
+    }
+    catch (System.Exception e)
+    {
+        Debug.LogWarning("TimerNetworkMessaging: Failed to request LanLobbyState to start server timer: " + e);
+    }
 
     var cm = nm.CustomMessagingManager;
         int clientCount = 0;

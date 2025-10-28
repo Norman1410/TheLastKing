@@ -17,7 +17,7 @@ public class TimerStarter : MonoBehaviour
     public CountdownTimerUI timer;
 
     [Tooltip("Duración de la ronda en segundos")]
-    public int roundDuration = 180;
+    public int roundDuration = 60;
 
     [Tooltip("Si está activado, solo el host podrá iniciar la ronda (por defecto true en producción)")]
     public bool requireHost = true;

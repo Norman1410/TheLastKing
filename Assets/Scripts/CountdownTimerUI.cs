@@ -10,7 +10,7 @@ using UnityEngine.Events;
 public class CountdownTimerUI : MonoBehaviour
 {
     [Header("Timer")]
-    public int durationSeconds = 180;
+    public int durationSeconds = 60;
     public bool startOnAwake = false;
 
     [Header("Sprites")]

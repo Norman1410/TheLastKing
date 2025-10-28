@@ -4441,7 +4441,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timer: {fileID: 1461308141}
-  roundDuration: 180
+  roundDuration: 60
   requireHost: 1
   isHostOverrideForTesting: 0
   hideTimerUntilStart: 1

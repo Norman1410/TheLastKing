@@ -920,7 +920,7 @@ public class LobbyController : MonoBehaviour
             var nm = NetworkManager.Singleton;
             if (nm == null || !nm.IsServer) return;
 
-            int seconds = 180; // default
+            int seconds = 60; // default (changed to 60s = 1 minute)
             var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
             if (ts != null) seconds = ts.roundDuration;
             else
