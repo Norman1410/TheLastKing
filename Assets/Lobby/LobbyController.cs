@@ -920,14 +920,21 @@ public class LobbyController : MonoBehaviour
             var nm = NetworkManager.Singleton;
             if (nm == null || !nm.IsServer) return;
 
-            int seconds = 60; // default (changed to 60s = 1 minute)
+            // Prefer TimerStarter as the authoritative source for round duration.
+            int seconds = 0;
             var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
-            if (ts != null) seconds = ts.roundDuration;
+            if (ts != null)
+            {
+                seconds = ts.roundDuration;
+            }
             else
             {
                 var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
                 if (ct != null) seconds = ct.durationSeconds;
             }
+
+            // Fallback default if nothing provides a duration
+            if (seconds <= 0) seconds = 60;
 
             // Update NetworkVariables in LanLobbyState if it exists (so late-joining clients see the timer)
             var lanState = LanLobbyState.Instance;

@@ -869,6 +869,52 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 5662025256430805583, guid: 786d9dffb98c46d4c89fd998c9c34a8f, type: 3}
   m_PrefabInstance: {fileID: 1355009670}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &356116686
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 356116688}
+  - component: {fileID: 356116687}
+  m_Layer: 0
+  m_Name: WinnerUI
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &356116687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 356116686}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 44c9e99b6181537498ce4f2425b4a4a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  winnerSprite: {fileID: 833874537, guid: 756777c1a1086274f8a2e42460298a1d, type: 3}
+  gameOverSprite: {fileID: 1639980908, guid: 6477b9251c41f0d48a200ebad4f32752, type: 3}
+--- !u!4 &356116688
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 356116686}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 960, y: 1000, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &390231881
 GameObject:
   m_ObjectHideFlags: 0
@@ -4441,7 +4487,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timer: {fileID: 1461308141}
-  roundDuration: 60
+  roundDuration: 30
   requireHost: 1
   isHostOverrideForTesting: 0
   hideTimerUntilStart: 1
@@ -6602,6 +6648,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: CrosshairImg
       objectReference: {fileID: 0}
+    - target: {fileID: 4366355541040660706, guid: cb84303bd9f8a454b81c07efd0884760, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8546282669790298451, guid: cb84303bd9f8a454b81c07efd0884760, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -6704,3 +6754,4 @@ SceneRoots:
   - {fileID: 837617592}
   - {fileID: 713321266}
   - {fileID: 29354167}
+  - {fileID: 356116688}

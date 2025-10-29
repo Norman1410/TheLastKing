@@ -416,7 +416,43 @@ public class LanLobbyState : NetworkBehaviour
         yield return new WaitForSeconds(1.5f);
         
         if (!IsServer) yield break;
-        
+        // Wait until all connected clients have PlayerObjects spawned (or timeout)
+        const int spawnChecks = 20; // checks
+        const float spawnDelay = 0.5f; // seconds between checks (total ~10s)
+        bool allSpawned = false;
+        for (int check = 0; check < spawnChecks; check++)
+        {
+            allSpawned = true;
+            try
+            {
+                foreach (var cid in NetworkManager.ConnectedClientsIds)
+                {
+                    if (NetworkManager.ConnectedClients.TryGetValue(cid, out var cc))
+                    {
+                        if (cc.PlayerObject == null || !cc.PlayerObject.IsSpawned)
+                        {
+                            allSpawned = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[LanLobbyState] Exception while checking spawn status: {ex}");
+                allSpawned = false;
+            }
+
+            if (allSpawned) break;
+            Debug.Log($"[LanLobbyState] Waiting for all PlayerObjects to be spawned... attempt {check + 1}/{spawnChecks}");
+            yield return new WaitForSeconds(spawnDelay);
+        }
+
+        if (!allSpawned)
+        {
+            Debug.LogWarning("[LanLobbyState] Not all PlayerObjects were spawned before timer start timeout. Proceeding anyway.");
+        }
+
     // Determine timer duration (default 60s)
     int seconds = 60;
         var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();

@@ -10,6 +10,14 @@ public class WinnerUI : MonoBehaviour
     GameObject panel;
     Text mainText;
     Text subText;
+    Image resultImage;
+
+    [Header("Assign sprites manually in the Inspector")]
+    [Tooltip("Sprite to show for the local winner (drag Assets/Images/winner.png here)")]
+    public Sprite winnerSprite;
+
+    [Tooltip("Sprite to show for eliminated players (drag Assets/Images/game over.png here)")]
+    public Sprite gameOverSprite;
 
     void Awake()
     {
@@ -68,7 +76,36 @@ public class WinnerUI : MonoBehaviour
         stRect.anchorMax = new Vector2(0.9f, 0.5f);
         stRect.offsetMin = Vector2.zero;
         stRect.offsetMax = Vector2.zero;
+
+        // Result Image (centered) - used if sprite files are available
+        var riGO = new GameObject("ResultImage");
+        riGO.transform.SetParent(panel.transform, false);
+        resultImage = riGO.AddComponent<Image>();
+        resultImage.preserveAspect = true;
+        var riRect = resultImage.GetComponent<RectTransform>();
+        // Centered box occupying middle of screen
+        riRect.anchorMin = new Vector2(0.25f, 0.25f);
+        riRect.anchorMax = new Vector2(0.75f, 0.75f);
+        riRect.offsetMin = Vector2.zero;
+        riRect.offsetMax = Vector2.zero;
+
+        // Sprites are expected to be assigned manually in the Inspector. No automatic loading performed.
+
+        // Configure Image component for reliable display
+        resultImage.type = Image.Type.Simple;
+        resultImage.preserveAspect = true;
+        resultImage.color = Color.white;
+
+        // If we have a sprite, hide text by default (we'll show appropriate image when triggered)
+        if (winnerSprite != null || gameOverSprite != null)
+        {
+            mainText.gameObject.SetActive(false);
+            subText.gameObject.SetActive(false);
+            resultImage.gameObject.SetActive(false); // will be enabled when showing
+        }
     }
+
+    // No automatic sprite loaders - sprites must be assigned in the Inspector for predictable behavior in builds.
 
     public static void Show(string winnerName, bool isLocal)
     {
@@ -84,15 +121,37 @@ public class WinnerUI : MonoBehaviour
     {
         if (panel == null) CreateUI();
         panel.SetActive(true);
-        if (isLocal)
+        // If sprites are available, prefer showing images. Otherwise fall back to text messages.
+        if (resultImage != null && (winnerSprite != null || gameOverSprite != null))
         {
-            mainText.text = "YOU ARE THE WINNER!";
-            subText.text = "Congratulations!";
+            // hide text
+            if (mainText != null) mainText.gameObject.SetActive(false);
+            if (subText != null) subText.gameObject.SetActive(false);
+
+            resultImage.gameObject.SetActive(true);
+            if (isLocal)
+            {
+                resultImage.sprite = winnerSprite ?? gameOverSprite;
+            }
+            else
+            {
+                resultImage.sprite = gameOverSprite ?? winnerSprite;
+            }
         }
         else
         {
-            mainText.text = "MATCH OVER";
-            subText.text = $"Winner: {winnerName}";
+            if (mainText != null) mainText.gameObject.SetActive(true);
+            if (subText != null) subText.gameObject.SetActive(true);
+            if (isLocal)
+            {
+                mainText.text = "YOU ARE THE WINNER!";
+                subText.text = "Congratulations!";
+            }
+            else
+            {
+                mainText.text = "MATCH OVER";
+                subText.text = $"Winner: {winnerName}";
+            }
         }
     }
 
