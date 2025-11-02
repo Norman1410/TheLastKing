@@ -511,20 +511,121 @@ public class LobbyController : MonoBehaviour
         _status = "Lobby Relay creado.";
         _hideHudRelay = true;
 
+        // Ensure Timer messaging and try to start/broadcast timer for Relay host
+        try
+        {
+            // small delay to allow NetworkManager to settle
+            await Task.Delay(200);
+            EnsureTimerMessagingPresent();
+            TryBroadcastTimerStartFromHost();
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[Relay] Could not trigger timer start after host: " + e);
+        }
     }
 
 
     async Task StartRelayClient(string joinCode)
     {
-        var join = await RelayService.Instance.JoinAllocationAsync(joinCode);
-        var transport = (UnityTransport)NetworkManager.Singleton.NetworkConfig.NetworkTransport;
-        var data = new RelayServerData(join, "dtls");
-        transport.SetRelayServerData(data);
-        await Task.Yield();
-        NetworkManager.Singleton.StartClient();
-        _status = "Cliente conectado por Relay.";
-        _hideHudRelay = true;
-        if (_pollCo != null) StopCoroutine(_pollCo); // opcional
+        // Ensure core services are initialized first
+        await EnsureServices();
+        // Try JoinAllocation with retries because network in built players may be flaky
+        const int joinAttempts = 3;
+        for (int a = 1; a <= joinAttempts; a++)
+        {
+            try
+            {
+                Debug.Log($"[Relay] Joining allocation with code {joinCode} (attempt {a})...");
+                var join = await RelayService.Instance.JoinAllocationAsync(joinCode);
+                Debug.Log("[Relay] JoinAllocation succeeded.");
+
+                var nm = NetworkManager.Singleton;
+                if (nm == null)
+                {
+                    Debug.LogError("[Relay] StartRelayClient: NetworkManager.Singleton is null");
+                    _status = "No NetworkManager disponible.";
+                    return;
+                }
+
+                if (nm.NetworkConfig == null)
+                {
+                    Debug.LogWarning("[Relay] StartRelayClient: NetworkConfig null, creating one.");
+                    nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
+                }
+
+                UnityTransport transport = null;
+                try { transport = nm.NetworkConfig.NetworkTransport as UnityTransport; } catch { }
+                if (transport == null)
+                {
+                    transport = nm.gameObject.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
+                    if (nm.NetworkConfig.NetworkTransport == null)
+                        nm.NetworkConfig.NetworkTransport = transport;
+                }
+
+                if (transport == null)
+                {
+                    Debug.LogError("[Relay] StartRelayClient: No UnityTransport available");
+                    _status = "No se pudo conectar por Relay: falta transport.";
+                    return;
+                }
+
+                var data = new RelayServerData(join, "dtls");
+                try
+                {
+                    Debug.Log("[Relay] Applying RelayServerData to transport (client)...");
+                    transport.SetRelayServerData(data);
+                    Debug.Log("[Relay] RelayServerData applied on client transport.");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[Relay] SetRelayServerData failed (client): " + e);
+                    _status = "Error al configurar Relay.";
+                    return;
+                }
+
+                await Task.Yield();
+
+                try
+                {
+                    Debug.Log("[Relay] Starting client...");
+                    nm.StartClient();
+                    // give a moment to settle
+                    await Task.Delay(200);
+                    // Ensure TimerNetworkMessaging exists on the client so the named message handler is registered
+                    try { EnsureTimerMessagingPresent(); Debug.Log("[Relay] Ensured TimerNetworkMessaging present on client."); } catch { }
+                    if (nm.IsClient)
+                    {
+                        _status = "Cliente conectado por Relay.";
+                        _hideHudRelay = true;
+                        if (_pollCo != null) StopCoroutine(_pollCo); // opcional
+                        Debug.Log("[Relay] Client is connected (IsClient=true).");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Relay] StartClient invoked but NetworkManager reports IsClient=" + nm.IsClient + ", IsListening=" + nm.IsListening);
+                        _status = "StartClient iniciado, pero no se detectó conexión inmediatamente.";
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError("[Relay] StartClient threw exception: " + e);
+                    _status = "StartClient exception: " + e.Message;
+                }
+
+                // success or failure handled - exit retry loop
+                return;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[Relay] JoinAllocation attempt {a} failed: {e}");
+                _status = $"Error uniendo Relay (intento {a}): {e.Message}";
+                await Task.Delay(500 * a);
+            }
+        }
+
+        Debug.LogError("[Relay] All JoinAllocation attempts failed. Aborting client start.");
+        return;
     }
 
     // ===== Utils =====
@@ -550,10 +651,150 @@ public class LobbyController : MonoBehaviour
         {
             var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
             foreach (var ip in host.AddressList)
+
+    
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                     return ip.ToString();
         }
         catch { }
         return "127.0.0.1";
+    }
+
+    // Helper: ensure TimerNetworkMessaging exists in scene (used by both LAN and Relay flows)
+    void EnsureTimerMessagingPresent()
+    {
+        try
+        {
+            var tType = System.Type.GetType("TheLastKing.TimerNetworkMessaging, Assembly-CSharp");
+            if (tType == null)
+            {
+                Debug.Log("[Lobby] TimerNetworkMessaging type not found in assembly.");
+                return;
+            }
+
+            var existing = UnityEngine.Object.FindAnyObjectByType(tType);
+            if (existing != null) return;
+
+            var go = new GameObject("TimerNetworkMessaging");
+            go.AddComponent(tType);
+            UnityEngine.Object.DontDestroyOnLoad(go);
+            Debug.Log("[Lobby] TimerNetworkMessaging created and will persist across scenes.");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[Lobby] Could not ensure TimerNetworkMessaging: " + e);
+        }
+    }
+
+    System.Collections.IEnumerator BroadcastStartWithRetries(int seconds)
+    {
+        const int maxAttempts = 5;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                var tType = System.Type.GetType("TheLastKing.TimerNetworkMessaging, Assembly-CSharp");
+                if (tType != null)
+                {
+                    // try static method first
+                    var mi = tType.GetMethod("BroadcastStart", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                    if (mi != null)
+                    {
+                        mi.Invoke(null, new object[] { seconds });
+                        Debug.Log($"[Lobby] BroadcastStart invoked (static) attempt {attempt}");
+                        yield break;
+                    }
+
+                    // try instance method on existing object
+                    var existing = UnityEngine.Object.FindAnyObjectByType(tType);
+                    if (existing != null)
+                    {
+                        mi = tType.GetMethod("BroadcastStart", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (mi != null)
+                        {
+                            mi.Invoke(existing, new object[] { seconds });
+                            Debug.Log($"[Lobby] BroadcastStart invoked (instance) attempt {attempt}");
+                            yield break;
+                        }
+                    }
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[Lobby] BroadcastStart attempt failed: " + e);
+            }
+
+            // wait a little and retry
+            yield return new WaitForSeconds(0.25f * attempt);
+        }
+
+        Debug.LogWarning("[Lobby] BroadcastStartWithRetries: failed to invoke BroadcastStart after attempts.");
+    }
+
+    // Try to start the local host timer and broadcast start to connected clients (Relay path)
+    void TryBroadcastTimerStartFromHost()
+    {
+        try
+        {
+            var nm = NetworkManager.Singleton;
+            if (nm == null || !nm.IsServer) return;
+
+            // Prefer TimerStarter as the authoritative source for round duration.
+            int seconds = 0;
+            var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
+            if (ts != null)
+            {
+                seconds = ts.roundDuration;
+            }
+            else
+            {
+                var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
+                if (ct != null) seconds = ct.durationSeconds;
+            }
+
+            // Fallback default if nothing provides a duration
+            if (seconds <= 0) seconds = 60;
+
+            // Update NetworkVariables in LanLobbyState if it exists (so late-joining clients see the timer)
+            var lanState = LanLobbyState.Instance;
+            if (lanState != null && lanState.IsServer)
+            {
+                lanState.TimerDuration.Value = seconds;
+                lanState.TimerActive.Value = true;
+                Debug.Log($"[Lobby] Updated LanLobbyState timer NetworkVariables: duration={seconds}, active=true");
+            }
+
+            // Start local host timer if possible. If there's no UI, create a runtime TimerUI as a fallback so the host always sees it.
+            var ct2 = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
+            if (ct2 == null && ts == null)
+            {
+                // create runtime timer UI so host sees the sprite timer even if no prefab was placed in the scene
+                try
+                {
+                    ct2 = CountdownTimerUI.CreateRuntimeTimerUI();
+                    Debug.Log("[Lobby] Created runtime CountdownTimerUI for host fallback.");
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("[Lobby] Failed to create runtime CountdownTimerUI: " + e);
+                }
+            }
+
+            if (ct2 != null)
+            {
+                try { ct2.EnsureAndStart(seconds); } catch { ct2.gameObject.SetActive(true); ct2.StartTimer(seconds); }
+            }
+            else if (ts != null)
+            {
+                try { ts.StartRound(); } catch { }
+            }
+
+            // Broadcast to clients via TimerNetworkMessaging.BroadcastStart (with retries)
+            StartCoroutine(BroadcastStartWithRetries(seconds));
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[Lobby] TryBroadcastTimerStartFromHost failed: " + e);
+        }
     }
 }
