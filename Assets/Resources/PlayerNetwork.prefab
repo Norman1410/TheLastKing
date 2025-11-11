@@ -1729,7 +1729,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 1253251279
+  GlobalObjectIdHash: 2317024791
   InScenePlacedSourceGlobalObjectIdHash: 2317024791
   DeferredDespawnTick: 0
   Ownership: 1
@@ -1877,7 +1877,7 @@ Animator:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6996942344717257674}
   m_Enabled: 1
-  m_Avatar: {fileID: 0}
+  m_Avatar: {fileID: 9000000, guid: ae2d8a786fa84fc4abba7a96b95a8125, type: 3}
   m_Controller: {fileID: 9100000, guid: 9d3b55b4a57ea0c4a950f17bec2c7523, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
@@ -1885,7 +1885,15 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: 
+  m_WarningMessage: "\nBinding warning: Some generic clip(s) animate transforms that
+    are already bound by a Humanoid avatar. These transforms can only be changed
+    by Humanoid clips.\n\tTransform 'Spine1'\n\tTransform 'Neck'\n\tTransform 'RightLeg'\n\tTransform
+    'Left_UpLeg'\n\tTransform 'RightArm'\n\tTransform 'Spine2'\n\tTransform 'RightShoulder'\n\tTransform
+    'Left_Leg'\n\tTransform 'Spine'\n\tTransform 'Left_Hand'\n\tand more ...\n\tFrom
+    animation clip 'Breathing Idle'\n\tFrom animation clip 'Happy Walk'\n\tFrom animation
+    clip 'Happy Walk Backward'\n\tFrom animation clip 'JumpRunning'\n\tFrom animation
+    clip 'Running'\n\tFrom animation clip 'JumpWalking'\n\tFrom animation clip 'Running
+    Backward'"
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
