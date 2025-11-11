@@ -62,8 +62,8 @@ public class SpringTrapController : MonoBehaviour
             {
                 // Llama a la función pública en tu script FirstPersonController.cs
                 // para sobrescribir la velocidad vertical.
-                fpc.ApplyExternalLaunch(launchForce); 
-                
+                fpc.ApplyExternalLaunch(launchForce);
+
                 // Usamos 'launchForce' como velocidad (m/s).
                 // Tu FPC gestiona la velocidad; no uses Time.deltaTime aquí, pues ApplyExternalLaunch
                 // solo actualiza la variable 'velocity.y' y la gravedad hará el resto.
@@ -83,6 +83,7 @@ public class SpringTrapController : MonoBehaviour
         }
 
         // (La Sección 3 anterior fue eliminada, ya que la lógica se movió al bucle anterior)
+        
 
         // 4. Reiniciar el Resorte: Vuelve a la posición inicial
         yield return new WaitForSeconds(0.5f); // Pausa visual
