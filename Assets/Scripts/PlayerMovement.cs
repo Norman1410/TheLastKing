@@ -213,16 +213,21 @@ public class FirstPersonController : MonoBehaviour
     {
         if (!useAnimations || animator == null) return;
 
-        Debug.Log("Updating animations.");
+        // Magnitud del movimiento (para el parámetro Speed)
+        float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
 
-        // Calcular si el personaje se está moviendo
-        isMoving = moveInput.magnitude > 0.1f;
+        // Dirección hacia adelante o atrás (para el parámetro Direction)
+        float direction = moveInput.y;
 
         // Actualizar parámetros del Animator
-        animator.SetBool("isWalking", isMoving);
-        Debug.Log($"Set isWalking to {isMoving}");
+        animator.SetFloat("Speed", currentSpeed);
+        animator.SetFloat("Direction", direction);
+        animator.SetBool("IsJumping", isJumping);
 
+        Debug.Log($"Speed: {currentSpeed}, Direction: {direction}");
     }
+
+
     
     // Input callback methods
     private void OnMove(InputAction.CallbackContext context)
