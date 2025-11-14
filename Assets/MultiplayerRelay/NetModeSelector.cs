@@ -53,4 +53,5 @@ public class NetModeSelector : MonoBehaviour
         NetRuntime.Mode = m;
         Destroy(gameObject);
     }
+    
 }
