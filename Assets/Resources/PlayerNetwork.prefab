@@ -645,9 +645,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1436447077144854904}
-  - component: {fileID: 4976308079015746306}
+  - component: {fileID: 7823963980221463654}
   m_Layer: 0
-  m_Name: SM_Chibi_Character
+  m_Name: Player_Chibi
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -662,7 +662,7 @@ Transform:
   m_GameObject: {fileID: 1775713121691655106}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.199, z: 0}
+  m_LocalPosition: {x: 0, y: -0.459, z: 0}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -671,7 +671,7 @@ Transform:
   - {fileID: 459099139804938070}
   m_Father: {fileID: 3020579608923997534}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!95 &4976308079015746306
+--- !u!95 &7823963980221463654
 Animator:
   serializedVersion: 7
   m_ObjectHideFlags: 0
@@ -681,14 +681,22 @@ Animator:
   m_GameObject: {fileID: 1775713121691655106}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: efd331d4b11709f40b82377af7a18459, type: 3}
-  m_Controller: {fileID: 0}
-  m_CullingMode: 1
+  m_Controller: {fileID: 9100000, guid: 9d3b55b4a57ea0c4a950f17bec2c7523, type: 2}
+  m_CullingMode: 0
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: 
+  m_WarningMessage: "\nBinding warning: Some generic clip(s) animate transforms that
+    are already bound by a Humanoid avatar. These transforms can only be changed
+    by Humanoid clips.\n\tTransform 'Spine1'\n\tTransform 'Neck'\n\tTransform 'RightLeg'\n\tTransform
+    'Left_UpLeg'\n\tTransform 'RightArm'\n\tTransform 'Spine2'\n\tTransform 'RightShoulder'\n\tTransform
+    'Left_Leg'\n\tTransform 'Spine'\n\tTransform 'Left_Hand'\n\tand more ...\n\tFrom
+    animation clip 'JumpRunning'\n\tFrom animation clip 'JumpWalking'\n\tFrom animation
+    clip 'Breathing Idle'\n\tFrom animation clip 'Happy Walk'\n\tFrom animation clip
+    'Running'\n\tFrom animation clip 'Happy Walk Backward'\n\tFrom animation clip
+    'Running Backward'"
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
@@ -816,7 +824,7 @@ Transform:
   m_GameObject: {fileID: 2375424861205430534}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.206, z: 0}
+  m_LocalPosition: {x: 0, y: -0.529, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2599,7 +2607,6 @@ GameObject:
   - component: {fileID: 2270213130733425553}
   - component: {fileID: 3418417786922247155}
   - component: {fileID: 6656697848171417622}
-  - component: {fileID: 7660396239978888093}
   - component: {fileID: 5806351486050689295}
   m_Layer: 3
   m_Name: PlayerNetwork
@@ -2617,7 +2624,7 @@ Transform:
   m_GameObject: {fileID: 6996942344717257674}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.263, z: 0}
+  m_LocalPosition: {x: 0, y: 0.561, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2639,7 +2646,7 @@ CharacterController:
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 64
+    m_Bits: 8
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -2647,8 +2654,8 @@ CharacterController:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Height: 0.17
-  m_Radius: 0.17
+  m_Height: 0.5
+  m_Radius: 0.2
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
@@ -2798,43 +2805,13 @@ MonoBehaviour:
   mouseSensitivity: 2
   maxLookAngle: 80
   groundCheck: {fileID: 2087591144217242851}
-  groundDistance: 0.2
+  groundDistance: 0.3
   groundMask:
     serializedVersion: 2
     m_Bits: 64
   playerCamera: {fileID: 2692074369058656737}
-  animator: {fileID: 7660396239978888093}
-  useAnimations: 0
---- !u!95 &7660396239978888093
-Animator:
-  serializedVersion: 7
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6996942344717257674}
-  m_Enabled: 1
-  m_Avatar: {fileID: 9000000, guid: efd331d4b11709f40b82377af7a18459, type: 3}
-  m_Controller: {fileID: 9100000, guid: 9d3b55b4a57ea0c4a950f17bec2c7523, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_StabilizeFeet: 0
-  m_AnimatePhysics: 0
-  m_WarningMessage: "\nBinding warning: Some generic clip(s) animate transforms that
-    are already bound by a Humanoid avatar. These transforms can only be changed
-    by Humanoid clips.\n\tTransform 'Spine1'\n\tTransform 'Neck'\n\tTransform 'RightLeg'\n\tTransform
-    'Left_UpLeg'\n\tTransform 'RightArm'\n\tTransform 'Spine2'\n\tTransform 'RightShoulder'\n\tTransform
-    'Left_Leg'\n\tTransform 'Spine'\n\tTransform 'Left_Hand'\n\tand more ...\n\tFrom
-    animation clip 'JumpRunning'\n\tFrom animation clip 'JumpWalking'\n\tFrom animation
-    clip 'Breathing Idle'\n\tFrom animation clip 'Happy Walk'\n\tFrom animation clip
-    'Running'\n\tFrom animation clip 'Happy Walk Backward'\n\tFrom animation clip
-    'Running Backward'"
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorStateOnDisable: 0
-  m_WriteDefaultValuesOnDisable: 0
+  animator: {fileID: 7823963980221463654}
+  useAnimations: 1
 --- !u!136 &5806351486050689295
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -2845,7 +2822,7 @@ CapsuleCollider:
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -2854,10 +2831,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.6059189
-  m_Height: 1.7286977
+  m_Radius: 0.5507442
+  m_Height: 1.67711
   m_Direction: 1
-  m_Center: {x: -0.0002822876, y: 0.98303586, z: 0.018980503}
+  m_Center: {x: -0.006222725, y: 0.30086696, z: 0.018980503}
 --- !u!1 &7101504473633379911
 GameObject:
   m_ObjectHideFlags: 0

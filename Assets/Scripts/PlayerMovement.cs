@@ -166,7 +166,7 @@ public class FirstPersonController : MonoBehaviour
         float currentSpeed = isRunning ? runSpeed : walkSpeed;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
 
-        Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
+        //Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
 
         isMoving = moveInput.magnitude > 0.1f;
         animator.SetBool("isWalking", isMoving);
@@ -181,7 +181,7 @@ public class FirstPersonController : MonoBehaviour
         Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
         controller.Move(finalMovement * Time.deltaTime);
 
-        Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
+        //Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
     }
 
     
