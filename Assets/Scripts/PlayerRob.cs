@@ -252,7 +252,7 @@ public class PlayerRob : NetworkBehaviour
             hasCrown.Value = value;
         }
     }
-    
+
     void OnDrawGizmosSelected()
     {
         if (playerCamera != null)
@@ -263,6 +263,43 @@ public class PlayerRob : NetworkBehaviour
             Gizmos.DrawWireSphere(playerCamera.transform.position + direction * robDistance, 0.3f);
         }
     }
+    
+
+    // Angelica Crown falling animation
+
+        public void DropCrownWithAnimation(string animationType)
+    {
+        if (!IsServer) return;
+
+        if (hasCrown.Value == false) return;
+
+        // 1) Remove crown
+        hasCrown.Value = false;
+
+        // 2) Tell all clients to play animation
+        CrownAnimationClientRpc(animationType);
+    }
+
+    [ClientRpc]
+    void CrownAnimationClientRpc(string animType)
+    {
+        if (crownObject == null) return;
+
+        // You can swap how these behave depending on your animation setup
+        Animator anim = crownObject.GetComponent<Animator>();
+        if (anim != null)
+        {
+            if (animType == "wall")
+            {
+                anim.SetTrigger("FallOff");
+            }
+            else if (animType == "spring")
+            {
+                anim.SetTrigger("FlyOff");
+            }
+        }
+    }
+
 
     void OnGUI()
     {
