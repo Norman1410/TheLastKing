@@ -24,9 +24,13 @@ public class PlayerRob : NetworkBehaviour
     [SerializeField] private Image crosshair;
     [SerializeField] private Color normalColor = Color.white;
     [SerializeField] private Color canRobColor = Color.red;
-    
+
     [Header("Camera")]
     [SerializeField] private Camera playerCamera;
+    
+    [Header("Crown Drop")]
+    [SerializeField] private GameObject crownPickupPrefab;
+
     
     private PlayerRob targetPlayer;
     private InputAction robAction;
@@ -263,11 +267,11 @@ public class PlayerRob : NetworkBehaviour
             Gizmos.DrawWireSphere(playerCamera.transform.position + direction * robDistance, 0.3f);
         }
     }
-    
+
 
     // Angelica Crown falling animation
 
-        public void DropCrownWithAnimation(string animationType)
+    public void DropCrownWithAnimation(string animationType)
     {
         if (!IsServer) return;
 
@@ -279,24 +283,42 @@ public class PlayerRob : NetworkBehaviour
         // 2) Tell all clients to play animation
         CrownAnimationClientRpc(animationType);
     }
+    
+    // Angelica Crown hit ground -> spawn pickup
+    public void CrownHitGround()
+    {
+        if (!IsServer) return;
+
+        // Spawn ground pickup
+        GameObject pickup = Instantiate(
+            crownPickupPrefab, 
+            crownObject.transform.position, 
+            Quaternion.identity
+        );
+
+        pickup.GetComponent<NetworkObject>().Spawn();
+
+        // Hide the crown on head (already off)
+        crownObject.SetActive(false);
+    }
+
+
 
     [ClientRpc]
     void CrownAnimationClientRpc(string animType)
     {
         if (crownObject == null) return;
 
-        // You can swap how these behave depending on your animation setup
         Animator anim = crownObject.GetComponent<Animator>();
         if (anim != null)
         {
+            anim.ResetTrigger("FallOff");
+            anim.ResetTrigger("FlyOff");
+
             if (animType == "wall")
-            {
                 anim.SetTrigger("FallOff");
-            }
-            else if (animType == "spring")
-            {
+            else
                 anim.SetTrigger("FlyOff");
-            }
         }
     }
 
