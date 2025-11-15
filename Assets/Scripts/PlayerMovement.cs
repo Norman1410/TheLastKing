@@ -328,6 +328,4 @@ public class FirstPersonController : MonoBehaviour
     public bool IsRunning() => isRunning;
     public bool IsJumping() => isJumping;
     public bool IsWalking() => moveInput.magnitude > 0.1f && !isRunning;
-
-    
 }
