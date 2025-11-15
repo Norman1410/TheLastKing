@@ -1,57 +1,33 @@
 using UnityEngine;
 
-public enum NetMode { None, LAN, Relay }
+// Enum con los modos posibles
+public enum NetMode
+{
+    None,
+    LAN,
+    Relay
+}
 
+// Runtime global para guardar el modo actual
 public static class NetRuntime
 {
+    // Empezamos en None, así no se dibuja LAN ni Relay hasta que elijas.
     public static NetMode Mode = NetMode.None;
 }
 
+// Este componente ahora NO dibuja nada.
+// Solo existe para mantener compatibilidad si algún GameObject aún lo tiene.
 public class NetModeSelector : MonoBehaviour
 {
-    void Awake()
+    private void Awake()
     {
-#if UNITY_2023_1_OR_NEWER || UNITY_6000_0_OR_NEWER
-        var hasAnchor = FindAnyObjectByType<NetUIAnchor>(FindObjectsInactive.Include) != null;
-        var hasLanLobby = FindAnyObjectByType<LanLobbyState>(FindObjectsInactive.Include) != null;
-#else
-        var hasAnchor = FindObjectOfType<NetUIAnchor>(true) != null;
-        var hasLanLobby = FindObjectOfType<LanLobbyState>(true) != null;
-#endif
-
-        // Also allow selector when the active scene is the gameplay scene
-        bool isGameScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Pruebas_TheLastKing";
-
-        bool allowed = hasAnchor || hasLanLobby || isGameScene;
-
-        if (!allowed)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        // ❌ No uses DontDestroyOnLoad: el selector pertenece a la escena que lo contiene.
-        // DontDestroyOnLoad(gameObject);
+        // Ya no tocamos NetRuntime.Mode aquí.
+        // El modo se decide con tu nueva UI (NetModeSelectorUI).
     }
 
-    void OnGUI()
+    private void OnGUI()
     {
-        if (NetRuntime.Mode != NetMode.None) return;
-
-        const int w = 260, h = 120;
-        var rect = new Rect((Screen.width - w) / 2, (Screen.height - h) / 2, w, h);
-
-        GUILayout.BeginArea(rect, GUI.skin.window);
-        GUILayout.Label("Seleccionar modo de red");
-        if (GUILayout.Button("LAN (Local)"))   Choose(NetMode.LAN);
-        if (GUILayout.Button("Relay (Internet)")) Choose(NetMode.Relay);
-        GUILayout.EndArea();
+        // Antes aquí estaba la ventana fea "Seleccionar modo de red".
+        // Lo dejamos vacío para que no pinte nada.
     }
-
-    void Choose(NetMode m)
-    {
-        NetRuntime.Mode = m;
-        Destroy(gameObject);
-    }
-    
 }
