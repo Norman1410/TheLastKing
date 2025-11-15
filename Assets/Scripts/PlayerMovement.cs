@@ -294,24 +294,6 @@ public class FirstPersonController : MonoBehaviour
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
     }
-    
-    // Getter y Setter públicos para walkSpeed
-    public float GetWalkSpeed()
-    {
-        return walkSpeed;
-    }
-
-    public void SetWalkSpeed(float newSpeed)
-    {
-        // Validar que no sea un valor negativo ni cero
-        if (newSpeed < 0)
-        {
-            Debug.LogWarning("El valor de walkSpeed no puede ser negativo. Se mantendrá el valor anterior.");
-            return;
-        }
-
-        walkSpeed = newSpeed;
-    }
 
     void OnGUI()
     {
