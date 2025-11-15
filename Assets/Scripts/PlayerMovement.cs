@@ -328,4 +328,45 @@ public class FirstPersonController : MonoBehaviour
     public bool IsRunning() => isRunning;
     public bool IsJumping() => isJumping;
     public bool IsWalking() => moveInput.magnitude > 0.1f && !isRunning;
+
+    // ===============================================
+    // NUEVO MÉTODO PÚBLICO PARA LA TRAMPA DE RESORTE
+    // ===============================================
+    /// <summary>
+    /// Aplica una fuerza vertical al CharacterController. Usado por trampas.
+    /// </summary>
+    /// <param name="force">La velocidad inicial hacia arriba.</param>
+    public void ApplyExternalLaunch(float force)
+    {
+        // 1. Sobrescribe la velocidad vertical actual con la fuerza de lanzamiento.
+        velocity.y = force;
+
+        // 2. Opcional: Establece isJumping a true para que las animaciones se actualicen.
+        isJumping = true;
+
+        // 3. Opcional: Restablecer isGrounded para que no se intente resetear la velocidad inmediatamente
+        isGrounded = false;
+        wasGrounded = false;
+
+        Debug.Log($"External Launch Applied: {force}");
+    }
+    
+    // Getter y Setter públicos para walkSpeed
+    public float GetWalkSpeed()
+    {
+        return walkSpeed;
+    }
+
+    public void SetWalkSpeed(float newSpeed)
+    {
+        // Validar que no sea un valor negativo ni cero
+        if (newSpeed < 0)
+        {
+            Debug.LogWarning("El valor de walkSpeed no puede ser negativo. Se mantendrá el valor anterior.");
+            return;
+        }
+
+        walkSpeed = newSpeed;
+    }
+
 }
