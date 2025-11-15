@@ -295,12 +295,6 @@ public class FirstPersonController : MonoBehaviour
         Cursor.visible = !locked;
     }
     
-    // Getter y Setter públicos para walkSpeed
-    public float GetWalkSpeed()
-    {
-        return walkSpeed;
-    }
-    
     // Métodos públicos para obtener el estado (útiles para otros scripts)
     public bool IsGrounded() => isGrounded;
     public bool IsRunning() => isRunning;
