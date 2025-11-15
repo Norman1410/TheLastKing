@@ -110,7 +110,7 @@ public class PowerManager : MonoBehaviour
                     if (powerType == null)
                     {
                         if (pickedPrefab.GetComponent<Invisibility>() != null) powerType = PowerType.Invisibility;
-                        else if (pickedPrefab.GetComponent<MegaSize>() != null) powerType = PowerType.MegaSize;
+                        else if (pickedPrefab.GetComponent<Dwarf>() != null) powerType = PowerType.MegaSize;
                         else if (pickedPrefab.GetComponent<SuperJump>() != null) powerType = PowerType.JumpHigh;
                         else if (pickedPrefab.GetComponent<TurboSprint>() != null) powerType = PowerType.Boost;
                         else if (pickedPrefab.GetComponent<Shield>() != null) powerType = PowerType.Shield;
