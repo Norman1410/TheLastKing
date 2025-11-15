@@ -300,6 +300,40 @@ public class FirstPersonController : MonoBehaviour
     {
         return walkSpeed;
     }
+    
+    // Métodos públicos para obtener el estado (útiles para otros scripts)
+    public bool IsGrounded() => isGrounded;
+    public bool IsRunning() => isRunning;
+    public bool IsJumping() => isJumping;
+    public bool IsWalking() => moveInput.magnitude > 0.1f && !isRunning;
+
+    // ===============================================
+    // NUEVO MÉTODO PÚBLICO PARA LA TRAMPA DE RESORTE
+    // ===============================================
+    /// <summary>
+    /// Aplica una fuerza vertical al CharacterController. Usado por trampas.
+    /// </summary>
+    /// <param name="force">La velocidad inicial hacia arriba.</param>
+    public void ApplyExternalLaunch(float force)
+    {
+        // 1. Sobrescribe la velocidad vertical actual con la fuerza de lanzamiento.
+        velocity.y = force;
+
+        // 2. Opcional: Establece isJumping a true para que las animaciones se actualicen.
+        isJumping = true;
+
+        // 3. Opcional: Restablecer isGrounded para que no se intente resetear la velocidad inmediatamente
+        isGrounded = false;
+        wasGrounded = false;
+
+        Debug.Log($"External Launch Applied: {force}");
+    }
+    
+    // Getter y Setter públicos para walkSpeed
+    public float GetWalkSpeed()
+    {
+        return walkSpeed;
+    }
 
     public void SetWalkSpeed(float newSpeed)
     {
@@ -312,22 +346,4 @@ public class FirstPersonController : MonoBehaviour
 
         walkSpeed = newSpeed;
     }
-
-    void OnGUI()
-    {
-        // ESQUINA INFERIOR IZQUIERDA
-        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
-
-        GUILayout.Label($"isWalking: {isMoving}");
-        
-        GUILayout.EndArea();
-    }
-    
-    // Métodos públicos para obtener el estado (útiles para otros scripts)
-    public bool IsGrounded() => isGrounded;
-    public bool IsRunning() => isRunning;
-    public bool IsJumping() => isJumping;
-    public bool IsWalking() => moveInput.magnitude > 0.1f && !isRunning;
-
-    
 }
