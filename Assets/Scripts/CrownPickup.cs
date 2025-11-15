@@ -1,16 +1,25 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public class CrownPickup : MonoBehaviour
+public class CrownPickup : NetworkBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public override void OnNetworkSpawn()
     {
-        
+        base.OnNetworkSpawn();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnTriggerEnter(Collider other)
     {
-        
+        if (!IsServer) return;
+
+        if (other.CompareTag("Player"))
+        {
+            PlayerRob pr = other.GetComponent<PlayerRob>();
+            if (pr != null && !pr.HasCrown())
+            {
+                pr.SetCrownDirect(true);
+                NetworkObject.Despawn();
+            }
+        }
     }
 }

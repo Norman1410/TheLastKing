@@ -190,7 +190,7 @@ public class PlayerRob : NetworkBehaviour
     void RobCrownServerRpc(ulong targetNetworkObjectId, ServerRpcParams rpcParams = default)
     {
         Debug.Log($"[Server] ServerRpc recibido de cliente {rpcParams.Receive.SenderClientId}");
-        
+
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetNetObj))
         {
             var targetPlayer = targetNetObj.GetComponent<PlayerRob>();
@@ -203,10 +203,10 @@ public class PlayerRob : NetworkBehaviour
                     Debug.LogWarning($"[Server] Robo rechazado: distancia {distance:F2} > {robDistance}");
                     return;
                 }
-                
+
                 targetPlayer.hasCrown.Value = false;
                 this.hasCrown.Value = true;
-                
+
                 Debug.Log($"[Server] {gameObject.name} robó corona de {targetPlayer.gameObject.name}!");
             }
             else
@@ -219,16 +219,83 @@ public class PlayerRob : NetworkBehaviour
             Debug.LogWarning($"[Server] NetworkObject {targetNetworkObjectId} no encontrado");
         }
     }
+    
+    // --- TRAP LOGIC: Client/Trap requests the Server to drop the crown ---
+    [ServerRpc(RequireOwnership = false)]
+    public void DropCrownServerRpc(Vector3 direction, float force, ServerRpcParams rpcParams = default)
+    {
+        if (!hasCrown.Value) return;
+
+        hasCrown.Value = false;
+        
+        // 2. Tell all clients to visually drop the crown and apply physics
+        DropCrownClientRpc(direction, force);
+        
+        Debug.Log($"[Server] {gameObject.name} hit a trap and dropped the crown!");
+    }
+
+
+    // --- TRAP LOGIC: Server tells all Clients to handle the crown's physics and animation ---
+    [ClientRpc]
+    private void DropCrownClientRpc(Vector3 direction, float force)
+    {
+        if (crownObject == null) return;
+        
+        Rigidbody crownRb = crownObject.GetComponent<Rigidbody>();
+        Collider crownCol = crownObject.GetComponent<Collider>();
+        
+        if (crownRb != null && crownCol != null)
+        {
+            crownObject.transform.SetParent(null);
+            crownRb.isKinematic = false;
+            crownCol.isTrigger = false;
+            
+            // Apply force
+            crownRb.AddForce(direction * force, ForceMode.Impulse);
+            
+            // Apply random spin
+            Vector3 randomTorque = new Vector3(
+                UnityEngine.Random.Range(-1f, 1f),
+                UnityEngine.Random.Range(-1f, 1f),
+                UnityEngine.Random.Range(-1f, 1f)
+            ).normalized * force * 0.5f; 
+            
+            crownRb.AddTorque(randomTorque, ForceMode.Impulse);
+
+            Destroy(crownObject.gameObject, 15f); 
+        }
+    }
+
 
     void UpdateCrownVisual(bool active)
     {
-        if (crownObject != null)
+        if (crownObject == null) return;
+
+        if (active)
         {
-            crownObject.SetActive(active);
+            // Crown is being worn: Attach, position, and disable physics
+            
+            crownObject.transform.SetParent(this.transform); 
+            crownObject.transform.localPosition = new Vector3(0, 1.5f, 0); // Adjust this position
+            crownObject.transform.localRotation = Quaternion.identity;
+            
+            // Get components for physics setup
+            Rigidbody crownRb = crownObject.GetComponent<Rigidbody>();
+            Collider crownCol = crownObject.GetComponent<Collider>();
+            
+            // Disable physics while worn
+            if (crownRb != null) crownRb.isKinematic = true;
+            if (crownCol != null) crownCol.isTrigger = true;
+            
+            crownObject.SetActive(true);
         }
-        else if (active)
+        else
         {
-            Debug.LogWarning($"[{gameObject.name}] crownObject no asignado pero debería mostrar corona!");
+            // Crown is NOT worn: If it's still attached, we hide it.
+            if (crownObject.transform.parent == this.transform)
+            {
+                crownObject.SetActive(false);
+            }
         }
     }
 
@@ -301,7 +368,6 @@ public class PlayerRob : NetworkBehaviour
         // Hide the crown on head (already off)
         crownObject.SetActive(false);
     }
-
 
 
     [ClientRpc]
