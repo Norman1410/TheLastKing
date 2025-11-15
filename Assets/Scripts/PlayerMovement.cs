@@ -166,7 +166,7 @@ public class FirstPersonController : MonoBehaviour
         float currentSpeed = isRunning ? runSpeed : walkSpeed;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
 
-        Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
+        //Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
 
         isMoving = moveInput.magnitude > 0.1f;
         animator.SetBool("isWalking", isMoving);
@@ -181,7 +181,7 @@ public class FirstPersonController : MonoBehaviour
         Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
         controller.Move(finalMovement * Time.deltaTime);
 
-        Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
+        //Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
     }
 
     
@@ -293,6 +293,16 @@ public class FirstPersonController : MonoBehaviour
     {
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
+    }
+
+    void OnGUI()
+    {
+        // ESQUINA INFERIOR IZQUIERDA
+        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
+
+        GUILayout.Label($"isWalking: {isMoving}");
+        
+        GUILayout.EndArea();
     }
     
     // Métodos públicos para obtener el estado (útiles para otros scripts)
