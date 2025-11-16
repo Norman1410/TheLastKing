@@ -220,7 +220,9 @@ public class FirstPersonController : MonoBehaviour
         float direction = moveInput.y;
 
         // Actualizar parámetros del Animator
-        animator.SetFloat("Speed", currentSpeed);
+        if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f); // 0 → 2
+        else animator.SetFloat("Speed", currentSpeed); // 0 → 1
+        
         animator.SetFloat("Direction", direction);
         animator.SetBool("IsJumping", isJumping);
         animator.SetBool("IsRunning", isRunning);
@@ -229,8 +231,8 @@ public class FirstPersonController : MonoBehaviour
 
         //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
         Debug.Log($"Animator Parameters -->");
-        //Debug.Log($"  Speed: {animator.GetFloat("Speed")}");
-        //Debug.Log($"  Direction: {animator.GetFloat("Direction")}");
+        Debug.Log($"  Speed: {animator.GetFloat("Speed")}");
+        Debug.Log($"  Direction: {animator.GetFloat("Direction")}");
         Debug.Log($" - IsJumping: {animator.GetBool("IsJumping")}");
         Debug.Log($" - IsRunning: {animator.GetBool("IsRunning")}");
         Debug.Log($" - IsGrounded: {animator.GetBool("IsGrounded")}");
@@ -258,6 +260,7 @@ public class FirstPersonController : MonoBehaviour
             // Calculate jump velocity using physics formula: v = sqrt(h * -2 * g)
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             isJumping = true;
+            UpdateAnimations(); // Actualizar animaciones inmediatamente
             Debug.Log($"Jumping with velocity: {velocity.y}");
         }
     }
