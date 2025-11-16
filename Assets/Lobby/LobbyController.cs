@@ -15,6 +15,10 @@ using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
 using Unity.Networking.Transport.Relay;
 
+using TMPro;
+using UnityEngine.UI;
+
+
 public class LobbyController : MonoBehaviour
 {
     NetMode Mode => NetRuntime.Mode; // tu enum/manejador existente
@@ -27,6 +31,29 @@ public class LobbyController : MonoBehaviour
     public int maxPlayers = 8;
     public string playerDisplayName = "Jugador";
 
+    [Header("LAN UI (Canvas)")]
+    [SerializeField] TMP_InputField inputIpField;
+    [SerializeField] TMP_InputField inputPortField;
+    [SerializeField] TMP_InputField inputNameField;
+
+    [SerializeField] Button createHostButton;
+    [SerializeField] Button joinLanButton;
+    [SerializeField] Button saveNameButton;
+
+    [Header("Paneles UI")]
+    [SerializeField] GameObject panelLanLobby;
+    [SerializeField] GameObject panelLanHUD;   // NUEVO panel del HUD moderno
+
+    [Header("LAN HUD (Canvas)")]
+    [SerializeField] TMP_Text lanHudStatusText;     // Texto de arriba (LobbyStatusText)
+    [SerializeField] TMP_Text lanHudPlayersText;    // Texto de la lista (PlayersListText)
+    [SerializeField] Button lanHudReadyButton;      // Botón "Marcar Listo"
+    [SerializeField] Button lanHudStartGameButton;  // Botón "Iniciar Juego (Host)"
+    [SerializeField] Button lanHudLeaveLobbyButton; // Botón "Salir del Lobby"
+
+    [Header("Raíz UI NetMode (opcional)")]
+    [SerializeField] GameObject netModeCanvasRoot; // aquí vamos a arrastrar NetModeCanvas
+
     Lobby _lobby;
     string _status = "";
     string _joinLobbyCodeInput = "";
@@ -35,20 +62,159 @@ public class LobbyController : MonoBehaviour
     // NUEVO: flag para esconder el HUD en Relay
     bool _hideHudRelay = false;
 
+    // Al principio de la clase LobbyController
+    bool _lanSubscribedToList = false;
+
 
     float _pollEvery = 1.5f;
     Coroutine _pollCo;
 
     async void Awake()
     {
+        // Inicializar campos de la UI LAN (si estamos en modo LAN)
+        SetupLanUi();
+
+        // Asegurar que el HUD nuevo esté oculto al inicio
+        if (panelLanHUD != null)
+            panelLanHUD.SetActive(false);
+
+        // Conectar botones del HUD LAN
+        if (Mode == NetMode.LAN && panelLanHUD != null)
+        {
+            if (lanHudReadyButton != null)
+                lanHudReadyButton.onClick.AddListener(OnLanHudToggleReady);
+
+            if (lanHudStartGameButton != null)
+                lanHudStartGameButton.onClick.AddListener(OnLanHudStartGame);
+
+            if (lanHudLeaveLobbyButton != null)
+                lanHudLeaveLobbyButton.onClick.AddListener(OnLanHudLeaveLobby);
+        }
+
         if (Mode == NetMode.Relay)
             await EnsureServices();
     }
 
+    void SetupLanUi()
+    {
+        if (Mode != NetMode.LAN)
+            return;
+
+        if (inputIpField != null)
+            inputIpField.text = lanIp;
+
+        if (inputPortField != null)
+            inputPortField.text = lanPort.ToString();
+
+        if (inputNameField != null)
+            inputNameField.text = playerDisplayName;
+    }
+
+    public void OnLanHudToggleReady()
+    {
+        var state = LanLobbyState.Instance;
+        if (state == null) return;
+
+        _isReady = !_isReady;
+        state.ToggleReadyServerRpc(_isReady);
+        UpdateLanHudTexts();
+    }
+
+    public void OnLanHudStartGame()
+    {
+        var state = LanLobbyState.Instance;
+        if (!_isHost || state == null) return;
+
+        // 🔒 VERIFICACIÓN EXTRA DE SEGURIDAD EN CÓDIGO
+        if (!state.AllReady())
+        {
+            _status = "No todos los jugadores están listos.";
+            Debug.Log("[LAN] StartGame bloqueado: falta al menos un Ready=false");
+            UpdateLanHudTexts();
+            return;
+        }
+
+        state.StartMatchAsHost();
+        _status = "Iniciando juego…";
+
+        // Apagar HUD inmediatamente en el host
+        if (panelLanHUD != null)
+            panelLanHUD.SetActive(false);
+
+        if (panelLanLobby != null)
+            panelLanLobby.SetActive(false);
+
+        // Apagar todo el Canvas de lobby si lo tenemos referenciado
+        if (netModeCanvasRoot != null)
+            netModeCanvasRoot.SetActive(false);
+
+        UpdateLanHudTexts();
+    }
+
+
+    // Suscribirse una sola vez al evento de la NetworkList de LanLobbyState
+    void EnsureLanLobbySubscription()
+    {
+        if (_lanSubscribedToList)
+            return;
+
+        var state = LanLobbyState.Instance;
+        if (state == null || state.Players == null)
+            return;
+
+        state.Players.OnListChanged += OnLanPlayersListChanged;
+        _lanSubscribedToList = true;
+        Debug.Log("[LobbyController] Subscribed to LanLobbyState.Players.OnListChanged");
+    }
+
+    // Desuscribirse por limpieza
+    void UnsubscribeLanLobbySubscription()
+    {
+        if (!_lanSubscribedToList)
+            return;
+
+        var state = LanLobbyState.Instance;
+        if (state != null && state.Players != null)
+            state.Players.OnListChanged -= OnLanPlayersListChanged;
+
+        _lanSubscribedToList = false;
+        Debug.Log("[LobbyController] Unsubscribed from LanLobbyState.Players.OnListChanged");
+    }
+
+    // Callback cuando cambia la lista de jugadores en red
+    void OnLanPlayersListChanged(Unity.Netcode.NetworkListEvent<LanPlayerEntry> e)
+    {
+        // Simplemente refrescamos el HUD
+        UpdateLanHudTexts();
+    }
+
+
+
+    public void OnLanHudLeaveLobby()
+    {
+        var nm = NetworkManager.Singleton;
+        if (nm != null)
+            nm.Shutdown();
+
+        _isHost = false;
+        _isReady = false;
+        _status = "Desconectado.";
+
+        if (panelLanHUD != null)
+            panelLanHUD.SetActive(false);
+
+        if (panelLanLobby != null)
+            panelLanLobby.SetActive(true); // volver a la pantalla de IP/puerto
+    }
+
+
+
     void OnDestroy()
     {
         if (_pollCo != null) StopCoroutine(_pollCo);
+        UnsubscribeLanLobbySubscription();
     }
+
 
     async Task EnsureServices()
     {
@@ -88,41 +254,199 @@ public class LobbyController : MonoBehaviour
 
         throw new Exception("No se pudieron inicializar los Unity Services tras varios intentos.");
     }
-    
+
     void OnGUI()
     {
-        // Ocultar HUD en LAN cuando el juego ya inició
-        if (Mode == NetMode.LAN)
-        {
-            var st = LanLobbyState.Instance;
-            if (st != null && st.GameStarted.Value)
-                return;
-        }
+        // ---- SOLO USAMOS OnGUI PARA RELAY ----
+        // Para LAN ya tenemos el HUD nuevo en Canvas,
+        // así que no dibujamos nada aquí.
+
+        if (Mode != NetMode.Relay)
+            return;
 
         // Ocultar HUD en RELAY cuando ya estamos empezando/conectados
-        if (Mode == NetMode.Relay)
-        {
-            if (_hideHudRelay
-                || GetLobbyData("state") == "starting"
-                || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening))
-                return;
-        }
-        GUI.color = Color.black; // texto en negro
+        if (_hideHudRelay
+            || GetLobbyData("state") == "starting"
+            || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening))
+            return;
 
-        if (Mode == NetMode.LAN)
-        {
-            DrawLanUI();
-        }
-        else if (Mode == NetMode.Relay)
-        {
-            DrawRelayUI();
-        }
+        GUI.color = Color.black;
+        DrawRelayUI();
     }
 
 
-    // ==================== LAN con LOBBY ====================
 
-// ==================== LAN con LOBBY ====================
+    // ==================== LAN con LOBBY ====================
+    // === Métodos llamados por la UI del Canvas (Lobby LAN) ===
+
+    public void OnLanUiCreateHost()
+    {
+        // Leer puerto de la UI (si falla, usar 7777)
+        if (inputPortField != null && ushort.TryParse(inputPortField.text, out var p))
+            lanPort = p;
+        else
+            lanPort = 7777;
+
+        var nm = NetworkManager.Singleton;
+        if (nm == null)
+        {
+            // Intentar crear un NetworkManager si falta (igual que en DrawLanUI)
+            try
+            {
+                var nsType = System.Type.GetType("NetSetupOnce");
+                if (nsType != null)
+                {
+                    var mi = nsType.GetMethod("EnsureNetworkManagerPublic",
+                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                    if (mi != null) mi.Invoke(null, null);
+                }
+            }
+            catch { }
+
+            nm = NetworkManager.Singleton;
+            if (nm == null)
+            {
+                _status = "NetworkManager no encontrado en escena.";
+                Debug.LogWarning(_status);
+                return;
+            }
+        }
+
+        try
+        {
+            // MISMO código que en DrawLanUI para crear el host
+            if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
+
+            UnityTransport utp = null;
+            try { if (nm.NetworkConfig.NetworkTransport is UnityTransport utpCast) utp = utpCast; } catch { }
+            if (utp == null) utp = nm.gameObject.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
+
+            if (nm.NetworkConfig.NetworkTransport == null) nm.NetworkConfig.NetworkTransport = utp;
+
+            if (nm.NetworkConfig.PlayerPrefab == null)
+            {
+                var playerPrefabCandidate = Resources.Load<GameObject>("PlayerNetwork");
+                if (playerPrefabCandidate != null) nm.NetworkConfig.PlayerPrefab = playerPrefabCandidate;
+            }
+
+            InstallLobbyConnectionApproval(nm);
+
+            if (nm.IsListening || nm.IsServer || nm.IsClient)
+            {
+                try { nm.Shutdown(); } catch { }
+            }
+
+            try { utp.SetConnectionData("0.0.0.0", lanPort, "0.0.0.0"); } catch { }
+
+            if (!nm.StartHost())
+            {
+                _status = "No se pudo iniciar Host LAN.";
+                Debug.LogError("StartHost failed - NetworkManager state: IsListening=" + nm.IsListening + ", IsServer=" + nm.IsServer + ", IsClient=" + nm.IsClient);
+                return;
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("Error creating host: " + e);
+            _status = "No se pudo iniciar Host LAN (excepción).";
+            return;
+        }
+
+        _isHost = true;
+        EnsureLanStateSpawned();
+        _status = $"Lobby LAN creado. Conéctense a {GetLocalIp()}:{lanPort}";
+
+        if (panelLanLobby != null)
+            panelLanLobby.SetActive(false);
+
+        if (panelLanHUD != null)
+            panelLanHUD.SetActive(true);   // <- mostrar HUD moderno
+
+        UpdateLanHudTexts();               // <- rellenar textos una vez
+
+    }
+
+    public void OnLanUiJoin()
+    {
+        // Leer IP
+        if (inputIpField != null)
+        {
+            var txt = inputIpField.text;
+            lanIp = string.IsNullOrWhiteSpace(txt) ? "127.0.0.1" : txt.Trim();
+        }
+
+        // Leer puerto
+        if (inputPortField != null && ushort.TryParse(inputPortField.text, out var p))
+            lanPort = p;
+        else
+            lanPort = 7777;
+
+        var nm = NetworkManager.Singleton;
+        if (nm == null)
+        {
+            try
+            {
+                var nsType = System.Type.GetType("NetSetupOnce");
+                if (nsType != null)
+                {
+                    var mi = nsType.GetMethod("EnsureNetworkManagerPublic",
+                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                    if (mi != null) mi.Invoke(null, null);
+                }
+            }
+            catch { }
+
+            nm = NetworkManager.Singleton;
+            if (nm == null)
+            {
+                _status = "NetworkManager no encontrado en escena.";
+                Debug.LogWarning(_status);
+                return;
+            }
+        }
+
+        try
+        {
+            if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
+            InstallLobbyConnectionApproval(nm);
+
+            UnityTransport utpClient = null;
+            if (nm.NetworkConfig != null && nm.NetworkConfig.NetworkTransport is UnityTransport utpCast2)
+                utpClient = utpCast2;
+            if (utpClient == null)
+                utpClient = nm.gameObject.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
+            if (nm.NetworkConfig != null && nm.NetworkConfig.NetworkTransport == null)
+                nm.NetworkConfig.NetworkTransport = utpClient;
+
+            utpClient.SetConnectionData(lanIp, lanPort);
+            nm.StartClient();
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("Error joining LAN: " + e);
+        }
+
+        _isHost = false;
+        _status = $"Conectando a {lanIp}:{lanPort}…";
+
+        if (panelLanLobby != null)
+            panelLanLobby.SetActive(false);
+
+        if (panelLanHUD != null)
+            panelLanHUD.SetActive(true);   // <- mostrar HUD cuando el cliente se une
+
+        UpdateLanHudTexts();
+
+    }
+
+    public void OnLanUiSaveName()
+    {
+        if (inputNameField != null)
+            playerDisplayName = inputNameField.text;
+
+        PlayerName.Set(string.IsNullOrWhiteSpace(playerDisplayName) ? "Jugador" : playerDisplayName.Trim());
+        _status = $"Nombre guardado: {PlayerName.Get()}";
+    }
 
     void EnsureLanStateSpawned()
     {
@@ -161,9 +485,109 @@ public class LobbyController : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"[Lobby] InstallLobbyConnectionApproval exception: {e}\nNetworkManager={nm}\nNetworkConfig={ (nm!=null? nm.NetworkConfig.ToString() : "<null>") }");
+            Debug.LogError($"[Lobby] InstallLobbyConnectionApproval exception: {e}\nNetworkManager={nm}\nNetworkConfig={(nm != null ? nm.NetworkConfig.ToString() : "<null>")}");
         }
     }
+    void UpdateLanHudTexts()
+    {
+        if (panelLanHUD == null || !panelLanHUD.activeSelf)
+            return;
+
+        // --- TEXTO DE ESTADO ARRIBA ---
+        if (lanHudStatusText != null)
+        {
+            // Si ya estamos escuchando como host/cliente
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening)
+            {
+                lanHudStatusText.text = _isHost
+                    ? $"Lobby LAN (Host): {GetLocalIp()}:{lanPort}"
+                    : $"Lobby LAN (Cliente) conectado a {lanIp}:{lanPort}";
+            }
+            else
+            {
+                // Mientras no haya red, mostramos el último status
+                lanHudStatusText.text = string.IsNullOrEmpty(_status)
+                    ? "Inicializando lobby LAN..."
+                    : _status;
+            }
+        }
+
+        // --- LISTA DE JUGADORES ---
+        if (lanHudPlayersText != null)
+        {
+            var state = LanLobbyState.Instance;
+
+            // Si todavía no hay instancia de LanLobbyState
+            if (state == null)
+            {
+                lanHudPlayersText.text =
+                    "Jugadores conectados:\n(sincronizando lobby...)";
+                return;
+            }
+
+            // Ya hay estado, veamos cuántos jugadores ve
+            int count = state.Players.Count;
+
+            var sb = new System.Text.StringBuilder();
+            if (count == 0)
+            {
+                sb.AppendLine("(ninguno todavía)");
+            }
+            else
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    var p = state.Players[i];
+                    sb.AppendLine($"- {p.Name}  (Ready: {p.Ready})");
+                }
+            }
+
+            lanHudPlayersText.text = sb.ToString();
+        }
+
+        // --- BOTÓN INICIAR JUEGO (HOST) ---
+        if (lanHudStartGameButton != null)
+        {
+            var state = LanLobbyState.Instance;
+            lanHudStartGameButton.interactable =
+                _isHost && state != null && state.AllReady();
+        }
+    }
+
+
+    void Update()
+    {
+        // Solo nos interesa cuando estamos en modo LAN
+        if (Mode != NetMode.LAN)
+            return;
+
+        if (panelLanHUD == null)
+            return;
+
+        // Si el panel no está activo en la jerarquía, no actualizamos HUD
+        if (!panelLanHUD.activeInHierarchy)
+            return;
+
+        // NUEVO: asegurarnos de estar suscritos a la lista de jugadores
+        EnsureLanLobbySubscription();
+
+        // 1) Siempre refrescar los textos cada frame mientras se vea el HUD
+        UpdateLanHudTexts();
+
+        // 2) Si el juego ya empezó, ocultamos HUD y Canvas
+        var st = LanLobbyState.Instance;
+        if (st != null && st.GameStarted.Value)
+        {
+            if (panelLanHUD.activeSelf)
+                panelLanHUD.SetActive(false);
+
+            if (netModeCanvasRoot != null && netModeCanvasRoot.activeSelf)
+                netModeCanvasRoot.SetActive(false);
+        }
+    }
+
+
+
 
 
     void DrawLanUI()
@@ -172,14 +596,16 @@ public class LobbyController : MonoBehaviour
         if (nm == null)
         {
             // Try to create one on demand
-            try {
+            try
+            {
                 var nsType = System.Type.GetType("NetSetupOnce");
                 if (nsType != null)
                 {
                     var mi = nsType.GetMethod("EnsureNetworkManagerPublic", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
                     if (mi != null) mi.Invoke(null, null);
                 }
-            } catch { }
+            }
+            catch { }
 
             nm = NetworkManager.Singleton;
             if (nm == null)
@@ -189,15 +615,16 @@ public class LobbyController : MonoBehaviour
             }
         }
 
-    // Si aún no hay red activa, mostramos crear/unirse
-    if (!nm.IsListening)
+        // Si aún no hay red activa, mostramos crear/unirse
+        if (!nm.IsListening)
         {
             // HOST: crear lobby LAN (no entra al mapa)
-        // HOST: crear lobby LAN (no entra al mapa)
+            // HOST: crear lobby LAN (no entra al mapa)
             if (GUILayout.Button("Crear Lobby LAN (Host)"))
             {
                 // Aprobación: en LAN NO auto-spawneamos player en el lobby
-                try {
+                try
+                {
                     // Defensive re-init: ensure NetworkConfig exists and transport is assigned before starting
                     if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
 
@@ -234,7 +661,8 @@ public class LobbyController : MonoBehaviour
                         Debug.LogError("StartHost failed - NetworkManager state: IsListening=" + nm.IsListening + ", IsServer=" + nm.IsServer + ", IsClient=" + nm.IsClient);
                         return;
                     }
-                } catch (System.Exception e) { Debug.LogError("Error creating host: " + e); _status = "No se pudo iniciar Host LAN (excepción)."; return; }
+                }
+                catch (System.Exception e) { Debug.LogError("Error creating host: " + e); _status = "No se pudo iniciar Host LAN (excepción)."; return; }
 
                 _isHost = true;
 
@@ -833,7 +1261,7 @@ public class LobbyController : MonoBehaviour
             var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
             foreach (var ip in host.AddressList)
 
-    
+
                 if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                     return ip.ToString();
         }

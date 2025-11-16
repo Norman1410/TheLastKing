@@ -36,7 +36,7 @@ public class LanLobbyState : NetworkBehaviour
     public NetworkList<LanPlayerEntry> Players;
     public readonly NetworkVariable<bool> GameStarted =
         new(false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-    
+
     // Timer sync: when host starts timer, set this so late-joining clients can start their timer too
     public readonly NetworkVariable<int> TimerDuration =
         new(0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
@@ -67,7 +67,8 @@ public class LanLobbyState : NetworkBehaviour
 
             if (!exists)
             {
-                Players.Add(new LanPlayerEntry {
+                Players.Add(new LanPlayerEntry
+                {
                     ClientId = NetworkManager.LocalClientId,
                     Name = PlayerName.Get(),
                     Ready = false
@@ -81,10 +82,10 @@ public class LanLobbyState : NetworkBehaviour
 
             // subscribe to local scene load so client can notify server when it finished loading gameplay scene
             UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnLocalSceneLoaded;
-            
+
             // Subscribe to timer state changes so late-joining clients can start their timer
             TimerActive.OnValueChanged += OnTimerActiveChanged;
-            
+
             // If timer is already active when we spawn, start it immediately
             if (TimerActive.Value && TimerDuration.Value > 0)
             {
@@ -112,18 +113,18 @@ public class LanLobbyState : NetworkBehaviour
     void OnTimerActiveChanged(bool wasActive, bool isActive)
     {
         if (!IsClient || IsServer) return; // only run on pure clients
-        
+
         if (isActive && TimerDuration.Value > 0)
         {
             Debug.Log($"[LanLobbyState] Client detected timer activated remotely ({TimerDuration.Value}s). Starting client timer...");
             StartClientTimer(TimerDuration.Value);
         }
     }
-    
+
     void StartClientTimer(int seconds)
     {
         var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
-        
+
         // If no UI exists, create one at runtime
         if (ct == null)
         {
@@ -138,7 +139,7 @@ public class LanLobbyState : NetworkBehaviour
                 Debug.LogWarning("[LanLobbyState] Failed to create runtime UI: " + ex);
             }
         }
-        
+
         if (ct != null)
         {
             try
@@ -255,9 +256,9 @@ public class LanLobbyState : NetworkBehaviour
     // Returns true if applied, false if no playerobject found
     bool UpdatePlayerObjectNetworkName(ulong clientId, string displayName)
     {
-    // If the player's PlayerObject is spawned on the server, set its PlayerNetworkName.DisplayName
-    if (!IsServer) return false;
-    if (NetworkManager == null) return false;
+        // If the player's PlayerObject is spawned on the server, set its PlayerNetworkName.DisplayName
+        if (!IsServer) return false;
+        if (NetworkManager == null) return false;
         if (NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
         {
             var po = cc.PlayerObject;
@@ -307,38 +308,46 @@ public class LanLobbyState : NetworkBehaviour
         var cid = rpc.Receive.SenderClientId;
         for (int i = 0; i < Players.Count; i++)
             if (Players[i].ClientId == cid)
-            { var e = Players[i]; e.Ready = value; Players[i] = e; break; }
+            {
+                var e = Players[i];
+                e.Ready = value;
+                Players[i] = e;
+                break;
+            }
+
+        Debug.Log($"[LanLobbyState] ToggleReadyServerRpc -> client {cid} set Ready={value}");
+        LogPlayerStates();
     }
+
 
     public bool AllReady()
     {
-        if (Players.Count == 0) return false;
-        
-        // Host doesn't need to be ready, only clients
+        // Si no hay jugadores, claramente no se puede empezar
+        if (Players.Count == 0)
+            return false;
+
+        // TODOS los jugadores (host y clientes) deben estar listos
         for (int i = 0; i < Players.Count; i++)
         {
-            // Skip the host (server's client ID)
-            if (Players[i].ClientId == NetworkManager.ServerClientId)
-                continue;
-                
-            if (!Players[i].Ready) 
+            if (!Players[i].Ready)
                 return false;
         }
-        
+
         return true;
     }
+
 
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
         Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={AllReady()}");
-        
+
         if (!IsServer)
         {
             Debug.LogWarning("[LanLobbyState] Cannot start match: Not server");
             return;
         }
-        
+
         if (!AllReady())
         {
             Debug.LogWarning("[LanLobbyState] Cannot start match: Not all players are ready");
@@ -351,7 +360,7 @@ public class LanLobbyState : NetworkBehaviour
 
         var current = SceneManager.GetActiveScene().name;
         Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {gameplaySceneName}");
-        
+
         if (string.Equals(current, gameplaySceneName))
         {
             Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
@@ -365,7 +374,7 @@ public class LanLobbyState : NetworkBehaviour
             NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
         }
     }
-    
+
     void LogPlayerStates()
     {
         Debug.Log($"[LanLobbyState] Player count: {Players.Count}");
@@ -403,18 +412,18 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-    // Start a short retry loop to cover clients that finish loading a bit later
-    StartCoroutine(RetrySpawnMissingPlayers());
-        
+        // Start a short retry loop to cover clients that finish loading a bit later
+        StartCoroutine(RetrySpawnMissingPlayers());
+
         // After spawning players, start the timer on server and broadcast to clients
         StartCoroutine(StartTimerAfterSpawn());
     }
-    
+
     System.Collections.IEnumerator StartTimerAfterSpawn()
     {
         // Wait a moment for spawn to complete
         yield return new WaitForSeconds(1.5f);
-        
+
         if (!IsServer) yield break;
         // Wait until all connected clients have PlayerObjects spawned (or timeout)
         const int spawnChecks = 20; // checks
@@ -453,38 +462,38 @@ public class LanLobbyState : NetworkBehaviour
             Debug.LogWarning("[LanLobbyState] Not all PlayerObjects were spawned before timer start timeout. Proceeding anyway.");
         }
 
-    // Determine timer duration (default 60s)
-    int seconds = 60;
+        // Determine timer duration (default 60s)
+        int seconds = 60;
         var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
         if (ts != null) seconds = ts.roundDuration;
-        else 
-        { 
-            var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>(); 
-            if (ct != null) seconds = ct.durationSeconds; 
+        else
+        {
+            var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
+            if (ct != null) seconds = ct.durationSeconds;
         }
         // store for next-round scheduling
         lastRoundDurationSeconds = seconds;
-        
+
         Debug.Log($"[LanLobbyState] Starting timer for {seconds} seconds on server");
-        
+
         // Update NetworkVariables so late-joining clients will see the timer state
         TimerDuration.Value = seconds;
         TimerActive.Value = true;
-        
+
         // Start server's local timer using EnsureAndStart for sprite UI
         var ctHost = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
         if (ctHost != null)
         {
-            try 
-            { 
+            try
+            {
                 ctHost.EnsureAndStart(seconds);
                 Debug.Log("[LanLobbyState] Server timer UI started with sprites");
             }
-            catch (System.Exception e) 
-            { 
+            catch (System.Exception e)
+            {
                 Debug.LogWarning("[LanLobbyState] ctHost.EnsureAndStart failed: " + e);
-                ctHost.gameObject.SetActive(true); 
-                ctHost.StartTimer(seconds); 
+                ctHost.gameObject.SetActive(true);
+                ctHost.StartTimer(seconds);
             }
         }
         else if (ts != null)
@@ -493,22 +502,22 @@ public class LanLobbyState : NetworkBehaviour
         }
         else
         {
-                Debug.LogWarning("[LanLobbyState] No CountdownTimerUI or TimerStarter found on server - creating runtime TimerUI");
-                try
+            Debug.LogWarning("[LanLobbyState] No CountdownTimerUI or TimerStarter found on server - creating runtime TimerUI");
+            try
+            {
+                var created = CountdownTimerUI.CreateRuntimeTimerUI();
+                if (created != null)
                 {
-                    var created = CountdownTimerUI.CreateRuntimeTimerUI();
-                    if (created != null)
-                    {
-                        created.EnsureAndStart(seconds);
-                        Debug.Log("[LanLobbyState] Created runtime TimerUI and started timer on server.");
-                    }
+                    created.EnsureAndStart(seconds);
+                    Debug.Log("[LanLobbyState] Created runtime TimerUI and started timer on server.");
                 }
-                catch (System.Exception e)
-                {
-                    Debug.LogWarning("[LanLobbyState] Failed to create runtime TimerUI: " + e);
-                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[LanLobbyState] Failed to create runtime TimerUI: " + e);
+            }
         }
-        
+
         // Broadcast to clients via TimerNetworkMessaging (with detailed logs)
         try
         {
@@ -517,7 +526,7 @@ public class LanLobbyState : NetworkBehaviour
             {
                 // Use BroadcastStart which now logs each client individually
                 var mi = tType.GetMethod("BroadcastStart", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-                if (mi != null) 
+                if (mi != null)
                 {
                     mi.Invoke(null, new object[] { seconds });
                     Debug.Log($"[LanLobbyState] BroadcastStart invoked for {seconds}s");
@@ -580,8 +589,8 @@ public class LanLobbyState : NetworkBehaviour
             return;
         }
 
-    List<ulong> winners = new List<ulong>();
-    List<PlayerRob> winnerPlayers = new List<PlayerRob>();
+        List<ulong> winners = new List<ulong>();
+        List<PlayerRob> winnerPlayers = new List<PlayerRob>();
 
         // Iterate connected clients and check their PlayerObject for crown ownership
         foreach (var clientId in nm.ConnectedClientsIds)
@@ -613,32 +622,32 @@ public class LanLobbyState : NetworkBehaviour
             if (winners.Contains(clientId)) continue;
             if (!nm.ConnectedClients.TryGetValue(clientId, out var cc)) continue;
             var po = cc.PlayerObject;
-                if (po != null && po.IsSpawned)
+            if (po != null && po.IsSpawned)
+            {
+                try
                 {
+                    Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
+
+                    // Notify the client that they are eliminated (will run only on that client)
                     try
                     {
-                        Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
-
-                        // Notify the client that they are eliminated (will run only on that client)
-                        try
-                        {
-                            var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
-                            NotifyEliminatedClientRpc(clientRpcParams);
-                        }
-                        catch (System.Exception ex)
-                        {
-                            Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
-                        }
-
-                        // Despawn and mark eliminated so they won't be included in next rounds
-                        po.Despawn(destroy: true);
-                        eliminatedClients.Add(clientId);
+                        var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
+                        NotifyEliminatedClientRpc(clientRpcParams);
                     }
-                    catch (System.Exception e)
+                    catch (System.Exception ex)
                     {
-                        Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                        Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
                     }
+
+                    // Despawn and mark eliminated so they won't be included in next rounds
+                    po.Despawn(destroy: true);
+                    eliminatedClients.Add(clientId);
                 }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                }
+            }
         }
 
         // Update network variables so clients know the timer stopped
@@ -795,30 +804,30 @@ public class LanLobbyState : NetworkBehaviour
 
                     var pm = po.GetComponent<PlayerMovement>();
                     if (pm != null) pm.enabled = false;
-                    
-                        // Hide local HUD elements that should not be visible to eliminated players
-                        try
-                        {
-                            // Hide crown HUD (keeps timer alone)
-                            var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
-                            if (crownHud != null)
-                            {
-                                crownHud.gameObject.SetActive(false);
-                                Debug.Log("[LanLobbyState] CrownHud hidden for eliminated client.");
-                            }
 
-                            // Hide powers HUD
-                            var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
-                            if (powersHud != null)
-                            {
-                                powersHud.gameObject.SetActive(false);
-                                Debug.Log("[LanLobbyState] PowersHUD hidden for eliminated client.");
-                            }
-                        }
-                        catch (System.Exception exHud)
+                    // Hide local HUD elements that should not be visible to eliminated players
+                    try
+                    {
+                        // Hide crown HUD (keeps timer alone)
+                        var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
+                        if (crownHud != null)
                         {
-                            Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
+                            crownHud.gameObject.SetActive(false);
+                            Debug.Log("[LanLobbyState] CrownHud hidden for eliminated client.");
                         }
+
+                        // Hide powers HUD
+                        var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
+                        if (powersHud != null)
+                        {
+                            powersHud.gameObject.SetActive(false);
+                            Debug.Log("[LanLobbyState] PowersHUD hidden for eliminated client.");
+                        }
+                    }
+                    catch (System.Exception exHud)
+                    {
+                        Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
+                    }
                 }
                 // Destroy local player object if present (server will despawn it too)
                 // But avoid double-destroy; the server will call despawn.
