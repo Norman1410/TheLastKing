@@ -538,8 +538,10 @@ public class LobbyController : MonoBehaviour
                 for (int i = 0; i < count; i++)
                 {
                     var p = state.Players[i];
-                    sb.AppendLine($"- {p.Name}  (Ready: {p.Ready})");
+                    var readyText = p.Ready ? "Listo" : "No listo";
+                    sb.AppendLine($"- {p.Name}  ({readyText})");
                 }
+
             }
 
             lanHudPlayersText.text = sb.ToString();
@@ -551,6 +553,14 @@ public class LobbyController : MonoBehaviour
             var state = LanLobbyState.Instance;
             lanHudStartGameButton.interactable =
                 _isHost && state != null && state.AllReady();
+        }
+
+        // --- BOTÓN LISTO / NO LISTO ---
+        if (lanHudReadyButton != null)
+        {
+            var label = lanHudReadyButton.GetComponentInChildren<TMPro.TMP_Text>();
+            if (label != null)
+                label.text = _isReady ? "Quitar listo" : "Marcar listo";
         }
     }
 
