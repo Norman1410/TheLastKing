@@ -557,36 +557,29 @@ public class LobbyController : MonoBehaviour
 
     void Update()
     {
-        // Solo nos interesa cuando estamos en modo LAN
+        // Actualizamos siempre los textos; internamente
+        // UpdateLanHudTexts ya hace los checks de panel activo.
+        UpdateLanHudTexts();
+
+        // Si no estamos en modo LAN no hacemos nada más.
         if (Mode != NetMode.LAN)
             return;
 
-        if (panelLanHUD == null)
-            return;
+        var st = LanLobbyState.Instance;
 
-        // Si el panel no está activo en la jerarquía, no actualizamos HUD
-        if (!panelLanHUD.activeInHierarchy)
-            return;
-
-        // NUEVO: asegurarnos de estar suscritos a la lista de jugadores
+        // Asegurarnos de estar suscritos a la lista de jugadores (solo una vez).
         EnsureLanLobbySubscription();
 
-        // 1) Siempre refrescar los textos cada frame mientras se vea el HUD
-        UpdateLanHudTexts();
-
-        // 2) Si el juego ya empezó, ocultamos HUD y Canvas
-        var st = LanLobbyState.Instance;
+        // Si el juego ya empezó, ocultamos HUD y Canvas.
         if (st != null && st.GameStarted.Value)
         {
-            if (panelLanHUD.activeSelf)
+            if (panelLanHUD != null && panelLanHUD.activeSelf)
                 panelLanHUD.SetActive(false);
 
             if (netModeCanvasRoot != null && netModeCanvasRoot.activeSelf)
                 netModeCanvasRoot.SetActive(false);
         }
     }
-
-
 
 
 
