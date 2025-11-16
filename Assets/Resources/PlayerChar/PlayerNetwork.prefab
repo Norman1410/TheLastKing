@@ -684,19 +684,11 @@ Animator:
   m_Controller: {fileID: 9100000, guid: 9d3b55b4a57ea0c4a950f17bec2c7523, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: "\nBinding warning: Some generic clip(s) animate transforms that
-    are already bound by a Humanoid avatar. These transforms can only be changed
-    by Humanoid clips.\n\tTransform 'Spine1'\n\tTransform 'Neck'\n\tTransform 'RightLeg'\n\tTransform
-    'Left_UpLeg'\n\tTransform 'RightArm'\n\tTransform 'Spine2'\n\tTransform 'RightShoulder'\n\tTransform
-    'Left_Leg'\n\tTransform 'Spine'\n\tTransform 'Left_Hand'\n\tand more ...\n\tFrom
-    animation clip 'JumpRunning'\n\tFrom animation clip 'JumpWalking'\n\tFrom animation
-    clip 'Breathing Idle'\n\tFrom animation clip 'Happy Walk'\n\tFrom animation clip
-    'Running'\n\tFrom animation clip 'Happy Walk Backward'\n\tFrom animation clip
-    'Running Backward'"
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
@@ -2810,7 +2802,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   playerCamera: {fileID: 2692074369058656737}
-  animator: {fileID: 0}
+  animator: {fileID: 4930169348361921155}
   useAnimations: 1
 --- !u!136 &5806351486050689295
 CapsuleCollider:

@@ -169,7 +169,6 @@ public class FirstPersonController : MonoBehaviour
         //Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
 
         isMoving = moveInput.magnitude > 0.1f;
-        animator.SetBool("isWalking", isMoving);
 
         if (!isGrounded){
             velocity.y += gravity * Time.deltaTime;
@@ -224,8 +223,17 @@ public class FirstPersonController : MonoBehaviour
         animator.SetFloat("Speed", currentSpeed);
         animator.SetFloat("Direction", direction);
         animator.SetBool("IsJumping", isJumping);
+        animator.SetBool("IsRunning", isRunning);
+        animator.SetBool("IsGrounded", isGrounded);
 
-        Debug.Log($"Speed: {currentSpeed}, Direction: {direction}");
+
+        //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
+        Debug.Log($"Animator Parameters -->");
+        //Debug.Log($"  Speed: {animator.GetFloat("Speed")}");
+        //Debug.Log($"  Direction: {animator.GetFloat("Direction")}");
+        Debug.Log($" - IsJumping: {animator.GetBool("IsJumping")}");
+        Debug.Log($" - IsRunning: {animator.GetBool("IsRunning")}");
+        Debug.Log($" - IsGrounded: {animator.GetBool("IsGrounded")}");
     }
 
 
