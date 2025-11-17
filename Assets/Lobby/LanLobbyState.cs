@@ -75,8 +75,7 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        if (IsClient)
-        {
+        if (IsClient){
             RegisterSelfServerRpc(PlayerName.Get());
 
             // subscribe to local scene load so client can notify server when it finished loading gameplay scene
@@ -220,86 +219,13 @@ public class LanLobbyState : NetworkBehaviour
     void RegisterSelfServerRpc(string displayName, ServerRpcParams rpc = default)
     {
         var cid = rpc.Receive.SenderClientId;
-        Debug.Log($"[LanLobbyState] RegisterSelfServerRpc from {cid} with name '{displayName}'");
 
-        // Update existing entry if present
         for (int i = 0; i < Players.Count; i++)
-        {
             if (Players[i].ClientId == cid)
-            {
-                var e = Players[i]; e.Name = displayName; Players[i] = e;
-                var applied = UpdatePlayerObjectNetworkName(cid, displayName);
-                Debug.Log($"[LanLobbyState] Updated Players entry for {cid}. Applied to PlayerObject={applied}");
-                return;
-            }
-        }
+            { var e = Players[i]; e.Name = displayName; Players[i] = e; return; }
 
-        // Add new entry
         Players.Add(new LanPlayerEntry { ClientId = cid, Name = displayName, Ready = false });
-
-        // Try to update playerobject now; if missing, start a retry coroutine
-        var appliedNow = UpdatePlayerObjectNetworkName(cid, displayName);
-        Debug.Log($"[LanLobbyState] Added Players entry for {cid}. Applied to PlayerObject now={appliedNow}");
-        if (!appliedNow)
-        {
-            // start retry coroutine on server
-            StartCoroutine(RetryApplyNameToPlayerObject(cid, displayName));
-        }
-
-        // Debug: print current Players list
-        Debug.Log($"[LanLobbyState] Players list after RegisterSelf: count={Players.Count}");
-        for (int i = 0; i < Players.Count; i++)
-            Debug.Log($"  Player[{i}] ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
     }
-
-    // Returns true if applied, false if no playerobject found
-    bool UpdatePlayerObjectNetworkName(ulong clientId, string displayName)
-    {
-    // If the player's PlayerObject is spawned on the server, set its PlayerNetworkName.DisplayName
-    if (!IsServer) return false;
-    if (NetworkManager == null) return false;
-        if (NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
-        {
-            var po = cc.PlayerObject;
-            if (po != null && po.IsSpawned)
-            {
-                var pnn = po.GetComponent<PlayerNetworkDisplayName>();
-                if (pnn != null)
-                {
-                    pnn.DisplayName.Value = new Unity.Collections.FixedString64Bytes(displayName ?? "Jugador");
-                    Debug.Log($"[LanLobbyState] Applied DisplayName='{displayName}' to PlayerObject for client {clientId}");
-                    return true;
-                }
-                else
-                {
-                    Debug.Log($"[LanLobbyState] PlayerObject for client {clientId} has no PlayerNetworkDisplayName component");
-                }
-            }
-            else
-            {
-                Debug.Log($"[LanLobbyState] PlayerObject for client {clientId} is null or not spawned (po={po})");
-            }
-        }
-        else
-        {
-            Debug.Log($"[LanLobbyState] No connected client entry for clientId {clientId}");
-        }
-
-        return false;
-    }
-
-    System.Collections.IEnumerator RetryApplyNameToPlayerObject(ulong clientId, string displayName)
-    {
-        const int attempts = 10;
-        const float delay = 0.5f;
-        for (int i = 0; i < attempts; i++)
-        {
-            if (UpdatePlayerObjectNetworkName(clientId, displayName)) yield break;
-            yield return new WaitForSeconds(delay);
-        }
-        Debug.LogWarning($"[LanLobbyState] Could not apply displayName '{displayName}' to PlayerObject for client {clientId} after retries.");
-    }
-
 
     [ServerRpc(RequireOwnership = false)]
     public void ToggleReadyServerRpc(bool value, ServerRpcParams rpc = default)
@@ -313,65 +239,30 @@ public class LanLobbyState : NetworkBehaviour
     public bool AllReady()
     {
         if (Players.Count == 0) return false;
-        
-        // Host doesn't need to be ready, only clients
         for (int i = 0; i < Players.Count; i++)
-        {
-            // Skip the host (server's client ID)
-            if (Players[i].ClientId == NetworkManager.ServerClientId)
-                continue;
-                
-            if (!Players[i].Ready) 
-                return false;
-        }
-        
+            if (!Players[i].Ready) return false;
         return true;
     }
 
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
-        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={AllReady()}");
-        
-        if (!IsServer)
-        {
-            Debug.LogWarning("[LanLobbyState] Cannot start match: Not server");
-            return;
-        }
-        
-        if (!AllReady())
-        {
-            Debug.LogWarning("[LanLobbyState] Cannot start match: Not all players are ready");
-            LogPlayerStates();
-            return;
-        }
+        if (!IsServer || !AllReady()) return;
 
-        Debug.Log("[LanLobbyState] Starting match...");
         GameStarted.Value = true;
+        
+        Debug.Log("[LanLobbyState] Iniciando partida. Spawneando jugadores...");
 
         var current = SceneManager.GetActiveScene().name;
-        Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {gameplaySceneName}");
-        
         if (string.Equals(current, gameplaySceneName))
         {
-            Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
             SpawnAllPlayersNow(); // misma escena
             // Ensure timer starts on server even if we didn't change scenes
             StartCoroutine(StartTimerAfterSpawn());
         }
         else
         {
-            Debug.Log($"[LanLobbyState] Loading scene: {gameplaySceneName}");
             NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
-        }
-    }
-    
-    void LogPlayerStates()
-    {
-        Debug.Log($"[LanLobbyState] Player count: {Players.Count}");
-        for (int i = 0; i < Players.Count; i++)
-        {
-            Debug.Log($"  Player {i}: ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
         }
     }
 
@@ -1206,42 +1097,42 @@ public class LanLobbyState : NetworkBehaviour
     }
 
     System.Collections.IEnumerator FinishSpawnEnable(NetworkObject no, CharacterController ccComp, Rigidbody rb)
+{
+    // Wait a frame so physics and Netcode can settle, then re-enable movement components
+    yield return null;
+    try
     {
-        // Wait a frame so physics and Netcode can settle, then re-enable movement components
-        yield return null;
-        try
+        if (rb != null)
         {
-            if (rb != null)
+            rb.isKinematic = false;
+            // zero velocity using reflection to avoid obsolete API differences
+            try
             {
-                rb.isKinematic = false;
-                // zero velocity using reflection to avoid obsolete API differences
-                try
+                var prop = rb.GetType().GetProperty("velocity");
+                if (prop != null && prop.CanWrite)
+                    prop.SetValue(rb, Vector3.zero, null);
+                else
                 {
-                    var prop = rb.GetType().GetProperty("velocity");
-                    if (prop != null && prop.CanWrite)
-                        prop.SetValue(rb, Vector3.zero, null);
-                    else
-                    {
-                        var prop2 = rb.GetType().GetProperty("linearVelocity");
-                        if (prop2 != null && prop2.CanWrite)
-                            prop2.SetValue(rb, Vector3.zero, null);
-                    }
+                    var prop2 = rb.GetType().GetProperty("linearVelocity");
+                    if (prop2 != null && prop2.CanWrite)
+                        prop2.SetValue(rb, Vector3.zero, null);
                 }
-                catch { }
             }
-
-            if (ccComp != null)
-            {
-                ccComp.enabled = true;
-            }
+            catch { }
         }
-        catch (System.Exception e)
+
+        if (ccComp != null)
         {
-            Debug.LogWarning($"[LAN] FinishSpawnEnable exception: {e}");
+            ccComp.enabled = true;
         }
+    }
+    catch (System.Exception e)
+    {
+        Debug.LogWarning($"[LAN] FinishSpawnEnable exception: {e}");
+    }
 
-        // Wait an extra frame to be safe
-        yield return null;
+    // Wait an extra frame to be safe
+    yield return null;
     }
 
 }
