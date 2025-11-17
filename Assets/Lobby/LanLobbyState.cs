@@ -294,8 +294,8 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        // Start a short retry loop to cover clients that finish loading a bit later
-        StartCoroutine(RetrySpawnMissingPlayers());
+    // Start a short retry loop to cover clients that finish loading a bit later
+    StartCoroutine(RetrySpawnMissingPlayers());
         
         // After spawning players, start the timer on server and broadcast to clients
         StartCoroutine(StartTimerAfterSpawn());
@@ -344,8 +344,8 @@ public class LanLobbyState : NetworkBehaviour
             Debug.LogWarning("[LanLobbyState] Not all PlayerObjects were spawned before timer start timeout. Proceeding anyway.");
         }
 
-        // Determine timer duration (default 60s)
-        int seconds = 60;
+    // Determine timer duration (default 60s)
+    int seconds = 60;
         var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
         if (ts != null) seconds = ts.roundDuration;
         else 
@@ -384,20 +384,20 @@ public class LanLobbyState : NetworkBehaviour
         }
         else
         {
-            Debug.LogWarning("[LanLobbyState] No CountdownTimerUI or TimerStarter found on server - creating runtime TimerUI");
-            try
-            {
-                var created = CountdownTimerUI.CreateRuntimeTimerUI();
-                if (created != null)
+                Debug.LogWarning("[LanLobbyState] No CountdownTimerUI or TimerStarter found on server - creating runtime TimerUI");
+                try
                 {
-                    created.EnsureAndStart(seconds);
-                    Debug.Log("[LanLobbyState] Created runtime TimerUI and started timer on server.");
+                    var created = CountdownTimerUI.CreateRuntimeTimerUI();
+                    if (created != null)
+                    {
+                        created.EnsureAndStart(seconds);
+                        Debug.Log("[LanLobbyState] Created runtime TimerUI and started timer on server.");
+                    }
                 }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning("[LanLobbyState] Failed to create runtime TimerUI: " + e);
-            }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("[LanLobbyState] Failed to create runtime TimerUI: " + e);
+                }
         }
         
         // Broadcast to clients via TimerNetworkMessaging (with detailed logs)
@@ -471,8 +471,8 @@ public class LanLobbyState : NetworkBehaviour
             return;
         }
 
-        List<ulong> winners = new List<ulong>();
-        List<PlayerRob> winnerPlayers = new List<PlayerRob>();
+    List<ulong> winners = new List<ulong>();
+    List<PlayerRob> winnerPlayers = new List<PlayerRob>();
 
         // Iterate connected clients and check their PlayerObject for crown ownership
         foreach (var clientId in nm.ConnectedClientsIds)
@@ -498,35 +498,38 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        // Convert non-winners into spectators (no despawn, stay in same scene)
+        // Despawn non-winners' PlayerObjects but keep them connected and mark them eliminated
         foreach (var clientId in nm.ConnectedClientsIds)
         {
             if (winners.Contains(clientId)) continue;
             if (!nm.ConnectedClients.TryGetValue(clientId, out var cc)) continue;
             var po = cc.PlayerObject;
-            if (po != null && po.IsSpawned)
-            {
-                try
+                if (po != null && po.IsSpawned)
                 {
-                    Debug.Log($"[LanLobbyState] Client {clientId} lost this round -> switching to spectator.");
-                    // Mark eliminated so they won't be included in next rounds
-                    eliminatedClients.Add(clientId);
-
-                    var pr = po.GetComponent<PlayerRob>();
-                    if (pr != null)
+                    try
                     {
-                        pr.EnterSpectatorServer(); // server-authoritative transition to spectator
-                    }
+                        Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
 
-                    // Notify the client to hide HUD segments (CrownHUD, PowersHUD)
-                    var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
-                    NotifyEliminatedClientRpc(clientRpcParams);
+                        // Notify the client that they are eliminated (will run only on that client)
+                        try
+                        {
+                            var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
+                            NotifyEliminatedClientRpc(clientRpcParams);
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
+                        }
+
+                        // Despawn and mark eliminated so they won't be included in next rounds
+                        po.Despawn(destroy: true);
+                        eliminatedClients.Add(clientId);
+                    }
+                    catch (System.Exception e)
+                    {
+                        Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                    }
                 }
-                catch (System.Exception e)
-                {
-                    Debug.LogWarning($"[LanLobbyState] Failed to switch client {clientId} to spectator: {e}");
-                }
-            }
         }
 
         // Update network variables so clients know the timer stopped
@@ -684,31 +687,32 @@ public class LanLobbyState : NetworkBehaviour
                     var pm = po.GetComponent<PlayerMovement>();
                     if (pm != null) pm.enabled = false;
                     
-                    // Hide local HUD elements that should not be visible to eliminated players
-                    try
-                    {
-                        // Hide crown HUD (keeps timer alone)
-                        var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
-                        if (crownHud != null)
+                        // Hide local HUD elements that should not be visible to eliminated players
+                        try
                         {
-                            crownHud.gameObject.SetActive(false);
-                            Debug.Log("[LanLobbyState] CrownHud hidden for eliminated client.");
-                        }
+                            // Hide crown HUD (keeps timer alone)
+                            var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
+                            if (crownHud != null)
+                            {
+                                crownHud.gameObject.SetActive(false);
+                                Debug.Log("[LanLobbyState] CrownHud hidden for eliminated client.");
+                            }
 
-                        // Hide powers HUD
-                        var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
-                        if (powersHud != null)
-                        {
-                            powersHud.gameObject.SetActive(false);
-                            Debug.Log("[LanLobbyState] PowersHUD hidden for eliminated client.");
+                            // Hide powers HUD
+                            var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
+                            if (powersHud != null)
+                            {
+                                powersHud.gameObject.SetActive(false);
+                                Debug.Log("[LanLobbyState] PowersHUD hidden for eliminated client.");
+                            }
                         }
-                    }
-                    catch (System.Exception exHud)
-                    {
-                        Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
-                    }
+                        catch (System.Exception exHud)
+                        {
+                            Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
+                        }
                 }
-                // Server is handling spectator conversion; avoid local destroy here
+                // Destroy local player object if present (server will despawn it too)
+                // But avoid double-destroy; the server will call despawn.
             }
         }
         catch (System.Exception e)
@@ -1093,41 +1097,42 @@ public class LanLobbyState : NetworkBehaviour
     }
 
     System.Collections.IEnumerator FinishSpawnEnable(NetworkObject no, CharacterController ccComp, Rigidbody rb)
+{
+    // Wait a frame so physics and Netcode can settle, then re-enable movement components
+    yield return null;
+    try
     {
-        // Wait a frame so physics and Netcode can settle, then re-enable movement components
-        yield return null;
-        try
+        if (rb != null)
         {
-            if (rb != null)
+            rb.isKinematic = false;
+            // zero velocity using reflection to avoid obsolete API differences
+            try
             {
-                rb.isKinematic = false;
-                // zero velocity using reflection to avoid obsolete API differences
-                try
+                var prop = rb.GetType().GetProperty("velocity");
+                if (prop != null && prop.CanWrite)
+                    prop.SetValue(rb, Vector3.zero, null);
+                else
                 {
-                    var prop = rb.GetType().GetProperty("velocity");
-                    if (prop != null && prop.CanWrite)
-                        prop.SetValue(rb, Vector3.zero, null);
-                    else
-                    {
-                        var prop2 = rb.GetType().GetProperty("linearVelocity");
-                        if (prop2 != null && prop2.CanWrite)
-                            prop2.SetValue(rb, Vector3.zero, null);
-                    }
+                    var prop2 = rb.GetType().GetProperty("linearVelocity");
+                    if (prop2 != null && prop2.CanWrite)
+                        prop2.SetValue(rb, Vector3.zero, null);
                 }
-                catch { }
             }
-
-            if (ccComp != null)
-            {
-                ccComp.enabled = true;
-            }
+            catch { }
         }
-        catch (System.Exception e)
+
+        if (ccComp != null)
         {
-            Debug.LogWarning($"[LAN] FinishSpawnEnable exception: {e}");
+            ccComp.enabled = true;
         }
-
-        // Wait an extra frame to be safe
-        yield return null;
     }
+    catch (System.Exception e)
+    {
+        Debug.LogWarning($"[LAN] FinishSpawnEnable exception: {e}");
+    }
+
+    // Wait an extra frame to be safe
+    yield return null;
+    }
+
 }
