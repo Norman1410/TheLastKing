@@ -286,11 +286,22 @@ public class PowerManager : MonoBehaviour
                 foreach (var r in rends) r.enabled = true;
                 break;
             case PowerType.Dwarf:
-                duration = 6f; // Duración del Mega Tamaño
+                duration = 6f; // Duración del Tamaño Peque
                 Vector3 origScale = player.transform.localScale;
                 player.transform.localScale = origScale * 0.3f;
                 yield return new WaitForSeconds(duration);
                 player.transform.localScale = origScale;
+                break;
+            case PowerType.Levitate:
+                duration = 6f; 
+                var pmLevitate = player.GetComponent<FirstPersonController>();
+                if (pmLevitate != null)
+                {
+                    float originalGravityMultiplier = pmLevitate.gravityMultiplier;
+                    pmLevitate.gravityMultiplier = 0.1f; 
+                    yield return new WaitForSeconds(duration);
+                    pmLevitate.gravityMultiplier = originalGravityMultiplier;
+                }
                 break;
         }
 
@@ -351,5 +362,6 @@ public enum PowerType
     Boost,
     JumpHigh,
     Invisibility,
-    Dwarf
+    Dwarf,
+    Levitate
 }

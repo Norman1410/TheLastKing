@@ -359,8 +359,8 @@ MonoBehaviour:
   - prefab: {fileID: 8547863810078993965, guid: aa1f77701b0221d43aa0f9f7157d1bc1, type: 3}
     icon: {fileID: -332265249, guid: 2bf6d919e0b538746ae176947e654fc3, type: 3}
     powerType: 0
-  - prefab: {fileID: 6322971991296647575, guid: 912b1558960138c44a5d11d3719aa3e9, type: 3}
-    icon: {fileID: -702678119, guid: 074e338c1f7baf844bb1a4f4b1b798b6, type: 3}
+  - prefab: {fileID: 5442309375222878638, guid: 7f490f0aaf28f7545a627fdc9ba3cbda, type: 3}
+    icon: {fileID: 1498557008, guid: 9a2b5905d25cf0d4cbc3fdd7a59d81da, type: 3}
     powerType: 4
   powerCooldownDuration: 1
 --- !u!1 &1544556075014297621
@@ -1860,6 +1860,7 @@ MonoBehaviour:
   runSpeed: 8
   jumpHeight: 1.5
   gravity: -50
+  gravityMultiplier: 1
   mouseSensitivity: 2
   maxLookAngle: 80
   groundCheck: {fileID: 2087591144217242851}

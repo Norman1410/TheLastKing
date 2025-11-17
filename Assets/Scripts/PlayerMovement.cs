@@ -8,7 +8,8 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] public float walkSpeed = 5f;
     [SerializeField] public float runSpeed = 8f;
     [SerializeField] public float jumpHeight = 2f;
-    [SerializeField] private float gravity = -9.81f;
+    [SerializeField] public float gravity = -9.81f;
+    [SerializeField] public float gravityMultiplier = 1.0f;
     
     [Header("Mouse Look Settings")]
     [SerializeField] private float mouseSensitivity = 2f; // Reducido para mejor control
@@ -168,7 +169,8 @@ public class FirstPersonController : MonoBehaviour
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
 
         // Apply gravity
-        velocity.y += gravity * Time.deltaTime;
+        velocity.y += (gravity * gravityMultiplier) * Time.deltaTime; 
+        controller.Move(velocity * Time.deltaTime);
 
         // Combine horizontal movement and vertical velocity into a single Move call
         Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);

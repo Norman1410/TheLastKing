@@ -28,7 +28,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -7.43608, y: 0, z: -5.77624}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4818271926876335550}
@@ -50,8 +50,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   duration: 5
-  sizeSplit: 0.3
-  effectDuration: 6
 --- !u!135 &7700440936732927003
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -5181,7 +5179,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 253802438956986826, guid: 48853cd3cc24c284d8a5333395c20ba3, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 5.207
+      value: 5.199
       objectReference: {fileID: 0}
     - target: {fileID: 253802438956986826, guid: 48853cd3cc24c284d8a5333395c20ba3, type: 3}
       propertyPath: m_LocalPosition.z

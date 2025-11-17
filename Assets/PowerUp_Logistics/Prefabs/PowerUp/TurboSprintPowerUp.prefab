@@ -9927,7 +9927,7 @@ Transform:
   m_GameObject: {fileID: 8547863810078993965}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 14.79, y: 0.69, z: -5.04}
+  m_LocalPosition: {x: 14.858, y: 0.69, z: -5.04}
   m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -9951,8 +9951,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   duration: 5
-  speedMultiplier: 3
-  effectDuration: 6
 --- !u!135 &7899798266704923054
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -9996,11 +9994,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4886224591627638547, guid: 59fd80584945fc7448940995b97dab30, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -1.29
+      value: -1.228
       objectReference: {fileID: 0}
     - target: {fileID: 4886224591627638547, guid: 59fd80584945fc7448940995b97dab30, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 5.23
+      value: 5.201
       objectReference: {fileID: 0}
     - target: {fileID: 4886224591627638547, guid: 59fd80584945fc7448940995b97dab30, type: 3}
       propertyPath: m_LocalPosition.z
@@ -10076,7 +10074,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6377430005063622566, guid: 59fd80584945fc7448940995b97dab30, type: 3}
       propertyPath: useEasingForScaling
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
