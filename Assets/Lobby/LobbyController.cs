@@ -300,41 +300,11 @@ public class LobbyController : MonoBehaviour
 
     async Task EnsureServices()
     {
-        // Retry a few times because in built players network/services may take longer
-        const int maxAttempts = 3;
-        int attempt = 0;
-        while (attempt < maxAttempts)
-        {
-            attempt++;
-            try
-            {
-                if (UnityServices.State != ServicesInitializationState.Initialized)
-                {
-                    Debug.Log("[Lobby] Initializing Unity Services (attempt " + attempt + ")...");
-                    await UnityServices.InitializeAsync();
-                    Debug.Log("[Lobby] Unity Services initialized.");
-                }
+        if (UnityServices.State != ServicesInitializationState.Initialized)
+            await UnityServices.InitializeAsync();
 
-                if (!AuthenticationService.Instance.IsSignedIn)
-                {
-                    Debug.Log("[Lobby] Signing in anonymously (attempt " + attempt + ")...");
-                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
-                    Debug.Log("[Lobby] Signed in. PlayerId=" + AuthenticationService.Instance.PlayerId);
-                }
-
-                // success
-                return;
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[Lobby] EnsureServices attempt " + attempt + " failed: " + e);
-                _status = "Error inicializando servicios (intento " + attempt + ")";
-                // small backoff
-                await Task.Delay(1000 * attempt);
-            }
-        }
-
-        throw new Exception("No se pudieron inicializar los Unity Services tras varios intentos.");
+        if (!AuthenticationService.Instance.IsSignedIn)
+            await AuthenticationService.Instance.SignInAnonymouslyAsync();
     }
 
     void OnGUI()
@@ -840,6 +810,7 @@ public class LobbyController : MonoBehaviour
             Debug.LogError($"[Lobby] InstallLobbyConnectionApproval exception: {e}\nNetworkManager={nm}\nNetworkConfig={(nm != null ? nm.NetworkConfig.ToString() : "<null>")}");
         }
     }
+
     void UpdateLanHudTexts()
     {
         if (panelLanHUD == null || !panelLanHUD.activeSelf)
@@ -1035,6 +1006,7 @@ public class LobbyController : MonoBehaviour
         var nm = NetworkManager.Singleton;
         if (nm == null)
         {
+
             // Try to create one on demand
             try
             {
@@ -1058,6 +1030,7 @@ public class LobbyController : MonoBehaviour
         // Si aún no hay red activa, mostramos crear/unirse
         if (!nm.IsListening)
         {
+
             // HOST: crear lobby LAN (no entra al mapa)
             // HOST: crear lobby LAN (no entra al mapa)
             if (GUILayout.Button("Crear Lobby LAN (Host)"))
@@ -1068,10 +1041,10 @@ public class LobbyController : MonoBehaviour
                     // Defensive re-init: ensure NetworkConfig exists and transport is assigned before starting
                     if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
 
-                    UnityTransport utp = null;
-                    // prefer existing transport
-                    try { if (nm.NetworkConfig.NetworkTransport is UnityTransport utpCast) utp = utpCast; } catch { }
-                    if (utp == null) utp = nm.gameObject.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
+
+                    // Escuchar en todas las interfaces
+                    var utp = (UnityTransport)nm.NetworkConfig.NetworkTransport;
+                    utp.SetConnectionData("0.0.0.0", lanPort, "0.0.0.0");
 
                     // assign transport into NetworkConfig
                     if (nm.NetworkConfig.NetworkTransport == null) nm.NetworkConfig.NetworkTransport = utp;
@@ -1121,22 +1094,11 @@ public class LobbyController : MonoBehaviour
             lanPort = ushort.TryParse(GUILayout.TextField(lanPort.ToString(), GUILayout.Width(70)), out var p) ? p : (ushort)7777;
             if (GUILayout.Button("Unirse LAN"))
             {
-                try
-                {
-                    if (nm.NetworkConfig == null) nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
-                    InstallLobbyConnectionApproval(nm);
+                InstallLobbyConnectionApproval(nm);
 
-                    UnityTransport utpClient = null;
-                    if (nm.NetworkConfig != null && nm.NetworkConfig.NetworkTransport is UnityTransport utpCast2)
-                        utpClient = utpCast2;
-                    if (utpClient == null)
-                        utpClient = nm.gameObject.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
-                    if (nm.NetworkConfig != null && nm.NetworkConfig.NetworkTransport == null)
-                        nm.NetworkConfig.NetworkTransport = utpClient;
-                    utpClient.SetConnectionData(lanIp, lanPort);
-                    nm.StartClient();
-                }
-                catch (System.Exception e) { Debug.LogError("Error joining LAN: " + e); }
+                var utp = (UnityTransport)nm.NetworkConfig.NetworkTransport;
+                utp.SetConnectionData(lanIp, lanPort);
+                nm.StartClient();
 
                 _isHost = false;
                 _status = $"Conectando a {lanIp}:{lanPort}…";
@@ -1437,7 +1399,6 @@ public class LobbyController : MonoBehaviour
 
     public async void StartGame()
     {
-        await EnsureServices();
         if (Mode == NetMode.LAN)
         {
             _status = "Usa el botón 'Iniciar Juego (Host)' en el Lobby LAN.";
@@ -1450,6 +1411,7 @@ public class LobbyController : MonoBehaviour
 
         try
         {
+
             await EnsureServices();
             Allocation alloc;
             try
@@ -1478,6 +1440,7 @@ public class LobbyController : MonoBehaviour
                 _status = "Relay join code error: " + e.Message;
                 return;
             }
+
 
             await Lobbies.Instance.UpdateLobbyAsync(_lobby.Id, new UpdateLobbyOptions
             {
@@ -1513,76 +1476,22 @@ public class LobbyController : MonoBehaviour
 
     async Task StartRelayHost(Allocation alloc)
     {
-        await EnsureServices();
-        // Defensive checks: ensure NetworkManager and transport exist
-        var nm = NetworkManager.Singleton;
-        if (nm == null)
-        {
-            Debug.LogError("[Relay] StartRelayHost: NetworkManager.Singleton is null");
-            _status = "No NetworkManager disponible.";
-            return;
-        }
-
-        if (nm.NetworkConfig == null)
-        {
-            Debug.LogWarning("[Relay] StartRelayHost: NetworkConfig null, creating one.");
-            nm.NetworkConfig = new Unity.Netcode.NetworkConfig();
-        }
-
-        UnityTransport transport = null;
-        try { transport = nm.NetworkConfig.NetworkTransport as UnityTransport; } catch { }
-        if (transport == null)
-        {
-            transport = nm.gameObject.GetComponent<UnityTransport>() ?? nm.gameObject.AddComponent<UnityTransport>();
-            if (nm.NetworkConfig.NetworkTransport == null)
-                nm.NetworkConfig.NetworkTransport = transport;
-        }
-
-        if (transport == null)
-        {
-            Debug.LogError("[Relay] StartRelayHost: No UnityTransport available");
-            _status = "No se pudo iniciar Host (Relay): falta transport.";
-            return;
-        }
-
+        var transport = (UnityTransport)NetworkManager.Singleton.NetworkConfig.NetworkTransport;
         var data = new RelayServerData(alloc, "dtls");
-        try
-        {
-            Debug.Log("[Relay] Applying RelayServerData to transport...");
-            transport.SetRelayServerData(data);
-            Debug.Log("[Relay] RelayServerData applied.");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("[Relay] SetRelayServerData failed: " + e);
-            _status = "Error al configurar Relay.";
-            return;
-        }
+        transport.SetRelayServerData(data);
 
-        // give one frame for transport to apply settings
         await Task.Yield();
 
-        try
+        if (!NetworkManager.Singleton.StartHost())
         {
-            Debug.Log("[Relay] Starting Host...");
-            if (!nm.StartHost())
-            {
-                _status = "No se pudo iniciar Host (Relay).";
-                Debug.LogError("[Relay] StartHost failed - NetworkManager state: IsListening=" + nm.IsListening + ", IsServer=" + nm.IsServer + ", IsClient=" + nm.IsClient);
-                return;
-            }
-            Debug.Log("[Relay] Host started successfully.");
-        }
-        catch (Exception e)
-        {
-            Debug.LogError("[Relay] StartHost threw exception: " + e);
-            _status = "StartHost exception: " + e.Message;
+            _status = "No se pudo iniciar Host (Relay).";
             return;
         }
 
         _isHost = true;
         _status = "Lobby Relay creado.";
         _hideHudRelay = true;
+
         // Ensure Timer messaging and try to start/broadcast timer for Relay host
         try
         {
@@ -1621,6 +1530,7 @@ public class LobbyController : MonoBehaviour
 
     async Task StartRelayClient(string joinCode)
     {
+        // Ensure core services are initialized first
         await EnsureServices();
         // Try JoinAllocation with retries because network in built players may be flaky
         const int joinAttempts = 3;

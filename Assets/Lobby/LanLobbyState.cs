@@ -76,8 +76,7 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        if (IsClient)
-        {
+        if (IsClient){
             RegisterSelfServerRpc(PlayerName.Get());
 
             // subscribe to local scene load so client can notify server when it finished loading gameplay scene
@@ -220,37 +219,14 @@ public class LanLobbyState : NetworkBehaviour
     void RegisterSelfServerRpc(string displayName, ServerRpcParams rpc = default)
     {
         var cid = rpc.Receive.SenderClientId;
-        Debug.Log($"[LanLobbyState] RegisterSelfServerRpc from {cid} with name '{displayName}'");
 
-        // Update existing entry if present
         for (int i = 0; i < Players.Count; i++)
-        {
             if (Players[i].ClientId == cid)
-            {
-                var e = Players[i]; e.Name = displayName; Players[i] = e;
-                var applied = UpdatePlayerObjectNetworkName(cid, displayName);
-                Debug.Log($"[LanLobbyState] Updated Players entry for {cid}. Applied to PlayerObject={applied}");
-                return;
-            }
-        }
+            { var e = Players[i]; e.Name = displayName; Players[i] = e; return; }
 
-        // Add new entry
         Players.Add(new LanPlayerEntry { ClientId = cid, Name = displayName, Ready = false });
-
-        // Try to update playerobject now; if missing, start a retry coroutine
-        var appliedNow = UpdatePlayerObjectNetworkName(cid, displayName);
-        Debug.Log($"[LanLobbyState] Added Players entry for {cid}. Applied to PlayerObject now={appliedNow}");
-        if (!appliedNow)
-        {
-            // start retry coroutine on server
-            StartCoroutine(RetryApplyNameToPlayerObject(cid, displayName));
-        }
-
-        // Debug: print current Players list
-        Debug.Log($"[LanLobbyState] Players list after RegisterSelf: count={Players.Count}");
-        for (int i = 0; i < Players.Count; i++)
-            Debug.Log($"  Player[{i}] ClientId={Players[i].ClientId}, Name={Players[i].Name}, Ready={Players[i].Ready}");
     }
+
 
     // Returns true if applied, false if no playerobject found
     bool UpdatePlayerObjectNetworkName(ulong clientId, string displayName)
@@ -301,6 +277,7 @@ public class LanLobbyState : NetworkBehaviour
     }
 
 
+
     [ServerRpc(RequireOwnership = false)]
     public void ToggleReadyServerRpc(bool value, ServerRpcParams rpc = default)
     {
@@ -321,6 +298,7 @@ public class LanLobbyState : NetworkBehaviour
 
     public bool AllReady()
     {
+
         // Si no hay jugadores, claramente no se puede empezar
         if (Players.Count == 0)
             return false;
@@ -339,6 +317,7 @@ public class LanLobbyState : NetworkBehaviour
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
+
         bool allReady = AllReady();
         Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={allReady}");
 
@@ -375,25 +354,27 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        Debug.Log("[LanLobbyState] Starting match...");
+        //if (!IsServer || !AllReady()) return;
+
+
         GameStarted.Value = true;
+        
+        Debug.Log("[LanLobbyState] Iniciando partida. Spawneando jugadores...");
 
         var current = SceneManager.GetActiveScene().name;
+
         Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {gameplaySceneName}");
 
         if (string.Equals(current, gameplaySceneName))
         {
-            Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
             SpawnAllPlayersNow(); // misma escena
             StartCoroutine(StartTimerAfterSpawn());
         }
         else
         {
-            Debug.Log($"[LanLobbyState] Loading scene: {gameplaySceneName}");
             NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
         }
     }
-
 
     void LogPlayerStates()
     {
@@ -434,7 +415,6 @@ public class LanLobbyState : NetworkBehaviour
 
         // Start a short retry loop to cover clients that finish loading a bit later
         StartCoroutine(RetrySpawnMissingPlayers());
-
         // After spawning players, start the timer on server and broadcast to clients
         StartCoroutine(StartTimerAfterSpawn());
     }
@@ -636,7 +616,7 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        // Despawn non-winners' PlayerObjects but keep them connected and mark them eliminated
+        // Convert non-winners into spectators (no despawn, stay in same scene)
         foreach (var clientId in nm.ConnectedClientsIds)
         {
             if (winners.Contains(clientId)) continue;
@@ -646,26 +626,24 @@ public class LanLobbyState : NetworkBehaviour
             {
                 try
                 {
-                    Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
-
-                    // Notify the client that they are eliminated (will run only on that client)
-                    try
-                    {
-                        var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
-                        NotifyEliminatedClientRpc(clientRpcParams);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
-                    }
-
-                    // Despawn and mark eliminated so they won't be included in next rounds
-                    po.Despawn(destroy: true);
+                    Debug.Log($"[LanLobbyState] Client {clientId} lost this round -> switching to spectator.");
+                    // Mark eliminated so they won't be included in next rounds
                     eliminatedClients.Add(clientId);
+
+                    var pr = po.GetComponent<PlayerRob>();
+                    if (pr != null)
+                    {
+                        pr.EnterSpectatorServer(); // server-authoritative transition to spectator
+                    }
+
+                    // Notify the client to hide HUD segments (CrownHUD, PowersHUD)
+                    var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
+                    NotifyEliminatedClientRpc(clientRpcParams);
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                    Debug.LogWarning($"[LanLobbyState] Failed to switch client {clientId} to spectator: {e}");
+
                 }
             }
         }
@@ -823,8 +801,7 @@ public class LanLobbyState : NetworkBehaviour
                     if (pi != null) pi.enabled = false;
 
                     var pm = po.GetComponent<PlayerMovement>();
-                    if (pm != null) pm.enabled = false;
-
+                    if (pm != null) pm.enabled = false;           
                     // Hide local HUD elements that should not be visible to eliminated players
                     try
                     {
@@ -849,8 +826,7 @@ public class LanLobbyState : NetworkBehaviour
                         Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
                     }
                 }
-                // Destroy local player object if present (server will despawn it too)
-                // But avoid double-destroy; the server will call despawn.
+                // Server is handling spectator conversion; avoid local destroy here
             }
         }
         catch (System.Exception e)
@@ -1272,5 +1248,4 @@ public class LanLobbyState : NetworkBehaviour
         // Wait an extra frame to be safe
         yield return null;
     }
-
 }
