@@ -76,7 +76,8 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        if (IsClient){
+        if (IsClient)
+        {
             RegisterSelfServerRpc(PlayerName.Get());
 
             // subscribe to local scene load so client can notify server when it finished loading gameplay scene
@@ -358,7 +359,7 @@ public class LanLobbyState : NetworkBehaviour
 
 
         GameStarted.Value = true;
-        
+
         Debug.Log("[LanLobbyState] Iniciando partida. Spawneando jugadores...");
 
         var current = SceneManager.GetActiveScene().name;
@@ -412,9 +413,9 @@ public class LanLobbyState : NetworkBehaviour
                 Debug.LogWarning($"[LanLobbyState] Client {cid} timed out while loading scene. Will retry spawn later when they finish loading.");
             }
         }
-
         // Start a short retry loop to cover clients that finish loading a bit later
         StartCoroutine(RetrySpawnMissingPlayers());
+
         // After spawning players, start the timer on server and broadcast to clients
         StartCoroutine(StartTimerAfterSpawn());
     }
@@ -595,14 +596,16 @@ public class LanLobbyState : NetworkBehaviour
         // Iterate connected clients and check their PlayerObject for crown ownership
         foreach (var clientId in nm.ConnectedClientsIds)
         {
-            if (!nm.ConnectedClients.TryGetValue(clientId, out var cc)) continue;
+            if (!nm.ConnectedClients.TryGetValue(clientId, out var cc))
+                continue;
 
             var po = cc.PlayerObject;
             bool hasCrown = false;
             if (po != null && po.IsSpawned)
             {
                 var pr = po.GetComponent<PlayerRob>();
-                if (pr != null) hasCrown = pr.HasCrown();
+                if (pr != null)
+                    hasCrown = pr.HasCrown();
             }
 
             if (hasCrown)
@@ -611,39 +614,51 @@ public class LanLobbyState : NetworkBehaviour
                 if (po != null)
                 {
                     var pr = po.GetComponent<PlayerRob>();
-                    if (pr != null) winnerPlayers.Add(pr);
+                    if (pr != null)
+                        winnerPlayers.Add(pr);
                 }
             }
         }
 
-        // Convert non-winners into spectators (no despawn, stay in same scene)
+        // Despawn non-winners' PlayerObjects but keep them connected and mark them eliminated
         foreach (var clientId in nm.ConnectedClientsIds)
         {
-            if (winners.Contains(clientId)) continue;
-            if (!nm.ConnectedClients.TryGetValue(clientId, out var cc)) continue;
+            if (winners.Contains(clientId))
+                continue;
+            if (!nm.ConnectedClients.TryGetValue(clientId, out var cc))
+                continue;
+
             var po = cc.PlayerObject;
             if (po != null && po.IsSpawned)
             {
                 try
                 {
-                    Debug.Log($"[LanLobbyState] Client {clientId} lost this round -> switching to spectator.");
-                    // Mark eliminated so they won't be included in next rounds
-                    eliminatedClients.Add(clientId);
+                    Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
 
-                    var pr = po.GetComponent<PlayerRob>();
-                    if (pr != null)
+                    // Notify the client that they are eliminated (will run only on that client)
+                    try
                     {
-                        pr.EnterSpectatorServer(); // server-authoritative transition to spectator
+                        var clientRpcParams = new ClientRpcParams
+                        {
+                            Send = new ClientRpcSendParams
+                            {
+                                TargetClientIds = new ulong[] { clientId }
+                            }
+                        };
+                        NotifyEliminatedClientRpc(clientRpcParams);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
                     }
 
-                    // Notify the client to hide HUD segments (CrownHUD, PowersHUD)
-                    var clientRpcParams = new ClientRpcParams { Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } } };
-                    NotifyEliminatedClientRpc(clientRpcParams);
+                    // Despawn and mark eliminated so they won't be included in next rounds
+                    po.Despawn(destroy: true);
+                    eliminatedClients.Add(clientId);
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogWarning($"[LanLobbyState] Failed to switch client {clientId} to spectator: {e}");
-
+                    Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
                 }
             }
         }
@@ -661,6 +676,7 @@ public class LanLobbyState : NetworkBehaviour
         {
             Debug.LogWarning("[LanLobbyState] AnnounceWinnersClientRpc failed: " + e);
         }
+
         Debug.Log($"[LanLobbyState] Round end processed. Winners count: {winners.Count}");
 
         // If only one winner left -> game over. Otherwise start next round among winners.
@@ -693,7 +709,8 @@ public class LanLobbyState : NetworkBehaviour
         // Short intermission
         yield return new WaitForSeconds(3f);
 
-        if (!IsServer) yield break;
+        if (!IsServer)
+            yield break;
 
         var cgm = UnityEngine.Object.FindAnyObjectByType<CrownGameManager>();
         if (cgm == null)
@@ -715,7 +732,10 @@ public class LanLobbyState : NetworkBehaviour
             var tType = System.Type.GetType("TheLastKing.TimerNetworkMessaging, Assembly-CSharp");
             if (tType != null)
             {
-                var mi = tType.GetMethod("BroadcastStart", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var mi = tType.GetMethod(
+                    "BroadcastStart",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+                );
                 if (mi != null)
                 {
                     mi.Invoke(null, new object[] { lastRoundDurationSeconds });
@@ -731,6 +751,7 @@ public class LanLobbyState : NetworkBehaviour
         // Start server timer
         StartCoroutine(RunServerRoundTimer(lastRoundDurationSeconds));
     }
+
 
     [ClientRpc]
     void AnnounceMatchWinnerClientRpc(ulong winnerClientId, ClientRpcParams rpcParams = default)
@@ -801,7 +822,8 @@ public class LanLobbyState : NetworkBehaviour
                     if (pi != null) pi.enabled = false;
 
                     var pm = po.GetComponent<PlayerMovement>();
-                    if (pm != null) pm.enabled = false;           
+                    if (pm != null) pm.enabled = false;
+
                     // Hide local HUD elements that should not be visible to eliminated players
                     try
                     {
@@ -826,7 +848,9 @@ public class LanLobbyState : NetworkBehaviour
                         Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
                     }
                 }
-                // Server is handling spectator conversion; avoid local destroy here
+
+                // Destroy local player object if present (server will despawn it too)
+                // But avoid double-destroy; the server will call despawn.
             }
         }
         catch (System.Exception e)
@@ -834,6 +858,7 @@ public class LanLobbyState : NetworkBehaviour
             Debug.LogWarning($"[LanLobbyState] NotifyEliminatedClientRpc handling failed: {e}");
         }
     }
+
 
     [ClientRpc]
     void AnnounceWinnersClientRpc(ulong[] winnerClientIds, ClientRpcParams rpcParams = default)

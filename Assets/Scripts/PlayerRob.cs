@@ -27,21 +27,7 @@ public class PlayerRob : NetworkBehaviour
     
     [Header("Camera")]
     [SerializeField] private Camera playerCamera;
-
-    // === Spectator additions ===
-    [Header("Spectator")]
-    [Tooltip("Physics Layer to assign when entering spectator mode")]
-    [SerializeField] private string spectatorLayerName = "Spectator";
-
-    private NetworkVariable<bool> isSpectator = new NetworkVariable<bool>(
-        false,
-        NetworkVariableReadPermission.Everyone,
-        NetworkVariableWritePermission.Server
-    );
-
-    [Tooltip("Gameplay components to disable when in spectator (e.g., PlayerMovement, AttackController, Dash)")]
-    [SerializeField] private MonoBehaviour[] gameplayComponentsToDisable;
-
+    
     private PlayerRob targetPlayer;
     private InputAction robAction;
     private PlayerInput playerInput;
@@ -80,7 +66,8 @@ public class PlayerRob : NetworkBehaviour
     void OnRobPerformed(InputAction.CallbackContext context)
     {
         if (!IsOwner) return;
-        if (isSpectator.Value) return; // guard: espectador no roba
+        
+        Debug.Log($"[{gameObject.name}] Input ROB recibido! Target: {targetPlayer != null}");
         
         if (targetPlayer != null && targetPlayer.HasCrown())
         {
@@ -106,8 +93,9 @@ public class PlayerRob : NetworkBehaviour
     void OnCrownChanged(bool oldValue, bool newValue)
     {
         UpdateCrownVisual(newValue);
-        // Un espectador no muestra corona
-        if (isSpectator.Value && crownObject) crownObject.SetActive(false);
+        Debug.Log($"[{gameObject.name}] Corona: {oldValue} -> {newValue}");
+        
+        // Disparar evento para que el HUD se actualice
         OnCrownStatusChanged?.Invoke(newValue);
     }
 
@@ -115,19 +103,12 @@ public class PlayerRob : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        // Si es espectador: bloquear interacción y dejar crosshair neutro
-        if (isSpectator.Value)
-        {
-            if (crosshair != null) crosshair.color = normalColor;
-            targetPlayer = null;
-            return;
-        }
-
         // FALLBACK: Si no hay Input System, usar click izquierdo
         if (Input.GetMouseButtonDown(0)) // 0 = Click Izquierdo
         {
             if (targetPlayer != null && targetPlayer.HasCrown())
             {
+                Debug.Log($"[{gameObject.name}] Robo directo (fallback)");
                 RobCrown();
             }
         }
@@ -196,6 +177,7 @@ public class PlayerRob : NetworkBehaviour
         var targetNetObj = targetPlayer.GetComponent<NetworkObject>();
         if (targetNetObj != null && targetNetObj.IsSpawned)
         {
+            Debug.Log($"[{gameObject.name}] Enviando ServerRpc para robar...");
             RobCrownServerRpc(targetNetObj.NetworkObjectId);
         }
     }
@@ -203,23 +185,11 @@ public class PlayerRob : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     void RobCrownServerRpc(ulong targetNetworkObjectId, ServerRpcParams rpcParams = default)
     {
-        // Guard: atacante espectador no puede robar
-        if (isSpectator.Value)
-        {
-            Debug.LogWarning("[Server] Robo rechazado: atacante es espectador.");
-            return;
-        }
-
+        Debug.Log($"[Server] ServerRpc recibido de cliente {rpcParams.Receive.SenderClientId}");
+        
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetNetObj))
         {
             var targetPlayer = targetNetObj.GetComponent<PlayerRob>();
-            // Guard: objetivo espectador no es válido
-            if (targetPlayer != null && targetPlayer.IsSpectator())
-            {
-                Debug.LogWarning("[Server] Robo rechazado: objetivo es espectador.");
-                return;
-            }
-
             if (targetPlayer != null && targetPlayer.hasCrown.Value)
             {
                 // Verificar distancia server-side
@@ -237,7 +207,7 @@ public class PlayerRob : NetworkBehaviour
             }
             else
             {
-                Debug.LogWarning("[Server] Objetivo no tiene corona o es null");
+                Debug.LogWarning($"[Server] Objetivo no tiene corona o es null");
             }
         }
         else
@@ -250,7 +220,7 @@ public class PlayerRob : NetworkBehaviour
     {
         if (crownObject != null)
         {
-            crownObject.SetActive(active && !isSpectator.Value);
+            crownObject.SetActive(active);
         }
         else if (active)
         {
@@ -270,8 +240,10 @@ public class PlayerRob : NetworkBehaviour
         Debug.Log($"[Server] SetCrownDirect: {gameObject.name} corona = {value}");
     }
 
-    public bool HasCrown() => hasCrown.Value;
-    public bool IsSpectator() => isSpectator.Value;
+    public bool HasCrown()
+    {
+        return hasCrown.Value;
+    }
 
     public void SetCrown(bool value)
     {
@@ -280,73 +252,7 @@ public class PlayerRob : NetworkBehaviour
             hasCrown.Value = value;
         }
     }
-
-    // === Spectator API ===
-    [ServerRpc(RequireOwnership = false)]
-    public void EnterSpectatorServerRpc(ServerRpcParams rpc = default) => EnterSpectatorServer();
-
-    public void EnterSpectatorServer()
-    {
-        if (!IsServer) return;
-
-        // 1) marcar NV y quitar corona
-        isSpectator.Value = true;
-        SetCrownDirect(false);
-
-        // 2) cambiar capa para ignorar trampas/pickups/combate
-        if (!string.IsNullOrEmpty(spectatorLayerName))
-            gameObject.layer = LayerMask.NameToLayer(spectatorLayerName);
-
-        // 3) desactivar gameplay server-authoritative si aplica
-        TryDisableGameplayServer();
-
-        // 4) mover a punto seguro de espectador
-        TeleportToSpectatorPoint();
-
-        // 5) avisar al dueño para activar cámara de espectador/ocultar HUD
-        EnterSpectatorClientRpc();
-    }
-
-    [ClientRpc]
-    void EnterSpectatorClientRpc()
-    {
-        try
-        {
-            if (gameplayComponentsToDisable != null)
-                foreach (var mb in gameplayComponentsToDisable)
-                    if (mb) mb.enabled = false;
-
-            // Ocultar HUDs comunes (por si no lo hizo el LobbyState)
-            var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
-            if (crownHud) crownHud.gameObject.SetActive(false);
-            var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
-            if (powersHud) powersHud.gameObject.SetActive(false);
-
-            var spec = GetComponent<SpectatorController>();
-            if (spec) spec.EnableSpectatorLocal(true);
-        }
-        catch { }
-    }
-
-    void TryDisableGameplayServer()
-    {
-        // Si tu combate/daño es autoritativo en server, desactívalo aquí.
-        // Este ejemplo no requiere nada extra.
-    }
-
-    void TeleportToSpectatorPoint()
-    {
-        // Simple: súbelo sobre el mapa y ajusta a suelo
-        Vector3 pos = transform.position + new Vector3(0, 20f, 0);
-        if (Physics.Raycast(pos, Vector3.down, out var hit, 200f))
-            pos = hit.point + Vector3.up * 10f;
-
-        var cc = GetComponent<CharacterController>();
-        if (cc) cc.enabled = false;
-        transform.SetPositionAndRotation(pos, Quaternion.identity);
-        if (cc) cc.enabled = true;
-    }
-
+    
     void OnDrawGizmosSelected()
     {
         if (playerCamera != null)
@@ -362,11 +268,10 @@ public class PlayerRob : NetworkBehaviour
     {
         if (!IsOwner) return;
 
-        GUILayout.BeginArea(new Rect(10, 10, 300, 120));
+        GUILayout.BeginArea(new Rect(10, 10, 300, 100));
         GUILayout.Label($"HasCrown: {hasCrown.Value}");
-        GUILayout.Label($"IsSpectator: {isSpectator.Value}");
-        GUILayout.Label($"Target: {(targetPlayer != null ? "SÍ" : "NO")} ");
-        GUILayout.Label($"Camera: {(playerCamera != null ? "OK" : "NULL")} ");
+        GUILayout.Label($"Target: {(targetPlayer != null ? "SÍ" : "NO")}");
+        GUILayout.Label($"Camera: {(playerCamera != null ? "OK" : "NULL")}");
         if (targetPlayer != null)
         {
             float dist = Vector3.Distance(transform.position, targetPlayer.transform.position);
