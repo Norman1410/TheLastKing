@@ -2804,6 +2804,7 @@ MonoBehaviour:
   playerCamera: {fileID: 2692074369058656737}
   animator: {fileID: 4930169348361921155}
   useAnimations: 1
+  netObj: {fileID: 2209032535361837422}
 --- !u!136 &5806351486050689295
 CapsuleCollider:
   m_ObjectHideFlags: 0

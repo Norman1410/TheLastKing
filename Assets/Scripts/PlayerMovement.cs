@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -26,10 +27,13 @@ public class FirstPersonController : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
+
+    [SerializeField] private NetworkObject netObj;
     
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
+    
     
     // Movement variables
     private Vector2 moveInput;
@@ -49,6 +53,7 @@ public class FirstPersonController : MonoBehaviour
     {
         // Get components
         controller = GetComponent<CharacterController>();
+        //netObj = GetComponent<NetworkObject>();
         
         // Si no se asignó un animator, intentar encontrarlo
         if (animator == null)
@@ -213,6 +218,9 @@ public class FirstPersonController : MonoBehaviour
     private void UpdateAnimations()
     {
         if (!useAnimations || animator == null) return;
+        
+        // Solo el jugador local actualiza animaciones
+        if (!netObj.IsOwner) return;
 
         // Magnitud del movimiento (para el parámetro Speed)
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
