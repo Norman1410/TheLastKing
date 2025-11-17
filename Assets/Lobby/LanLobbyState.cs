@@ -198,17 +198,16 @@ public class LanLobbyState : NetworkBehaviour
     void OnClientConnected(ulong clientId)
     {
         if (!IsServer) return;
-        // Always start the persistent spawn attempts coroutine for this client.
-        // The coroutine itself will wait until the game has started before attempting to spawn.
+
+        Debug.Log($"[LanLobbyState] OnClientConnected: clientId={clientId}");
+
+        // Corrutina que intentará spawnear al jugador cuando el juego haya empezado
         StartCoroutine(EnsureSpawnForClient(clientId));
 
-        // If a client joins during an ongoing match, mark them as eliminated (spectator)
-        if (GameStarted.Value)
-        {
-            eliminatedClients.Add(clientId);
-            Debug.Log($"[LanLobbyState] Client {clientId} joined during match and is marked as eliminated (spectator).\n");
-        }
+        // Ya NO marcamos como eliminado aquí.
     }
+
+
 
     void OnClientDisconnected(ulong clientId)
     {
@@ -340,7 +339,8 @@ public class LanLobbyState : NetworkBehaviour
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
-        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={AllReady()}");
+        bool allReady = AllReady();
+        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={allReady}");
 
         if (!IsServer)
         {
@@ -348,11 +348,31 @@ public class LanLobbyState : NetworkBehaviour
             return;
         }
 
-        if (!AllReady())
+        // 🔴 AQUÍ CAMBIAMOS LA LÓGICA
+        if (!allReady)
         {
-            Debug.LogWarning("[LanLobbyState] Cannot start match: Not all players are ready");
-            LogPlayerStates();
-            return;
+            // Intentamos detectar si estamos en modo Relay para NO bloquear
+            bool isRelay = false;
+            try
+            {
+                // NetRuntime.Mode es el mismo enum que usas en LobbyController
+                isRelay = (NetRuntime.Mode == NetMode.Relay);
+            }
+            catch { }
+
+            if (!isRelay)
+            {
+                // LAN normal: seguimos exigiendo que todos estén listos
+                Debug.LogWarning("[LanLobbyState] Cannot start match (LAN): Not all players are ready");
+                LogPlayerStates();
+                return;
+            }
+            else
+            {
+                // RELAY: confiamos en que UGS ya validó READY y continuamos
+                Debug.LogWarning("[LanLobbyState] Not all players marked Ready en NetworkList, " +
+                                 "pero estamos en Relay y UGS ya validó READY. Continuando de todas formas.");
+            }
         }
 
         Debug.Log("[LanLobbyState] Starting match...");
@@ -365,7 +385,6 @@ public class LanLobbyState : NetworkBehaviour
         {
             Debug.Log("[LanLobbyState] Already in gameplay scene, spawning players now");
             SpawnAllPlayersNow(); // misma escena
-            // Ensure timer starts on server even if we didn't change scenes
             StartCoroutine(StartTimerAfterSpawn());
         }
         else
@@ -374,6 +393,7 @@ public class LanLobbyState : NetworkBehaviour
             NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
         }
     }
+
 
     void LogPlayerStates()
     {

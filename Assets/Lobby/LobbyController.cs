@@ -41,8 +41,22 @@ public class LobbyController : MonoBehaviour
     [SerializeField] Button saveNameButton;
 
     [Header("Paneles UI")]
-    [SerializeField] GameObject panelLanLobby;
-    [SerializeField] GameObject panelLanHUD;   // NUEVO panel del HUD moderno
+    [SerializeField] GameObject panelNetMode;      // Panel con botones LAN / ONLINE
+    [SerializeField] GameObject panelLanLobby;     // Panel del Lobby LAN (IP/Nombre)
+    [SerializeField] GameObject panelLanHUD;       // HUD moderno LAN
+    [SerializeField] GameObject panelRelayLobby;   // Panel del Lobby ONLINE (crear/unirse)
+    [SerializeField] GameObject panelRelayHUD;     // HUD moderno ONLINE (lista de jugadores)
+
+    [Header("Relay Lobby (Canvas)")]
+    [SerializeField] TMP_InputField relayCodeInputField;    // CodeInputField
+    [SerializeField] TMP_InputField relayNameInputField;    // InputNameField
+    [SerializeField] Button relayCreateLobbyButton;         // CreateRelayButton
+    [SerializeField] Button relayJoinLobbyButton;           // JoinRelayButton
+    [SerializeField] Button relaySaveNameButton;            // SaveNameButton
+    [SerializeField] TMP_Text relayStatusText;              // (opcional) texto de estado
+
+    [Header("Debug / Legacy HUD")]
+    [SerializeField] bool useLegacyRelayHud = false;
 
     [Header("LAN HUD (Canvas)")]
     [SerializeField] TMP_Text lanHudStatusText;     // Texto de arriba (LobbyStatusText)
@@ -50,6 +64,14 @@ public class LobbyController : MonoBehaviour
     [SerializeField] Button lanHudReadyButton;      // Botón "Marcar Listo"
     [SerializeField] Button lanHudStartGameButton;  // Botón "Iniciar Juego (Host)"
     [SerializeField] Button lanHudLeaveLobbyButton; // Botón "Salir del Lobby"
+
+    [Header("Relay HUD (Canvas)")]
+    [SerializeField] TMP_Text relayHudLobbyCodeText;   // Texto donde muestras el código (LobbyCODE)
+    [SerializeField] TMP_Text relayHudPlayersText;     // Texto de la lista de jugadores
+    [SerializeField] Button relayHudReadyButton;       // Botón "Marcar Listo"
+    [SerializeField] Button relayHudStartGameButton;   // Botón "Iniciar Juego (Host)"
+    [SerializeField] Button relayHudLeaveLobbyButton;  // Botón "Salir del Lobby"
+    [SerializeField] Button relayHudCopyCodeButton;    // Botón "Copiar LobbyCode"
 
     [Header("Raíz UI NetMode (opcional)")]
     [SerializeField] GameObject netModeCanvasRoot; // aquí vamos a arrastrar NetModeCanvas
@@ -74,7 +96,10 @@ public class LobbyController : MonoBehaviour
         // Inicializar campos de la UI LAN (si estamos en modo LAN)
         SetupLanUi();
 
-        // Asegurar que el HUD nuevo esté oculto al inicio
+        // Inicializar campos de la UI Relay (si estamos en modo Relay)
+        SetupRelayUi();
+
+        // Asegurar que el HUD nuevo LAN esté oculto al inicio
         if (panelLanHUD != null)
             panelLanHUD.SetActive(false);
 
@@ -91,9 +116,40 @@ public class LobbyController : MonoBehaviour
                 lanHudLeaveLobbyButton.onClick.AddListener(OnLanHudLeaveLobby);
         }
 
+        // Conectar botones del Lobby ONLINE (Canvas)
+        if (Mode == NetMode.Relay && panelRelayLobby != null)
+        {
+            if (relayCreateLobbyButton != null)
+                relayCreateLobbyButton.onClick.AddListener(OnRelayUiCreateLobbyClicked);
+
+            if (relayJoinLobbyButton != null)
+                relayJoinLobbyButton.onClick.AddListener(OnRelayUiJoinLobbyClicked);
+
+            if (relaySaveNameButton != null)
+                relaySaveNameButton.onClick.AddListener(OnRelayUiSaveNameClicked);
+        }
+
+        // 🔹 NUEVO: Conectar botones del HUD ONLINE (la pantalla de tu captura)
+        if (Mode == NetMode.Relay && panelRelayHUD != null)
+        {
+            if (relayHudReadyButton != null)
+                relayHudReadyButton.onClick.AddListener(OnRelayHudToggleReady);
+
+            if (relayHudStartGameButton != null)
+                relayHudStartGameButton.onClick.AddListener(OnRelayHudStartGame);
+
+            if (relayHudLeaveLobbyButton != null)
+                relayHudLeaveLobbyButton.onClick.AddListener(OnRelayHudLeaveLobby);
+
+            if (relayHudCopyCodeButton != null)
+                relayHudCopyCodeButton.onClick.AddListener(OnRelayHudCopyCodeClicked);
+        }
+
+        // Inicializar servicios de UGS sólo en modo Relay
         if (Mode == NetMode.Relay)
             await EnsureServices();
     }
+
 
     void SetupLanUi()
     {
@@ -109,6 +165,32 @@ public class LobbyController : MonoBehaviour
         if (inputNameField != null)
             inputNameField.text = playerDisplayName;
     }
+
+    void SetupRelayUi()
+    {
+        if (Mode != NetMode.Relay)
+            return;
+
+        // Asegurarnos de que el panel correcto esté activo
+        if (panelNetMode != null) panelNetMode.SetActive(false);
+        if (panelLanLobby != null) panelLanLobby.SetActive(false);
+        if (panelLanHUD != null) panelLanHUD.SetActive(false);
+        if (panelRelayLobby != null) panelRelayLobby.SetActive(true);
+        if (panelRelayHUD != null) panelRelayHUD.SetActive(false); // 👈 HUD online oculto al inicio
+
+        // Nombre inicial en el input
+        if (relayNameInputField != null)
+            relayNameInputField.text = playerDisplayName;
+
+        // Limpiar el código al entrar
+        if (relayCodeInputField != null)
+            relayCodeInputField.text = "";
+
+        // Mensaje de estado inicial
+        if (relayStatusText != null)
+            relayStatusText.text = "Lobby online listo para crear o unirse.";
+    }
+
 
     public void OnLanHudToggleReady()
     {
@@ -257,23 +339,10 @@ public class LobbyController : MonoBehaviour
 
     void OnGUI()
     {
-        // ---- SOLO USAMOS OnGUI PARA RELAY ----
-        // Para LAN ya tenemos el HUD nuevo en Canvas,
-        // así que no dibujamos nada aquí.
-
-        if (Mode != NetMode.Relay)
-            return;
-
-        // Ocultar HUD en RELAY cuando ya estamos empezando/conectados
-        if (_hideHudRelay
-            || GetLobbyData("state") == "starting"
-            || (NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening))
-            return;
-
-        GUI.color = Color.black;
-        DrawRelayUI();
+        // HUD legacy de Relay completamente desactivado.
+        // Esto evita que DrawRelayUI se ejecute y que use ToggleReady / botones viejos.
+        return;
     }
-
 
 
     // ==================== LAN con LOBBY ====================
@@ -448,6 +517,289 @@ public class LobbyController : MonoBehaviour
         _status = $"Nombre guardado: {PlayerName.Get()}";
     }
 
+    // === RELAY: métodos llamados por la UI del Canvas (Lobby ONLINE) ===
+
+    public async void OnRelayUiCreateLobbyClicked()
+    {
+        if (relayStatusText != null)
+            relayStatusText.text = "Creando lobby online...";
+
+        await CreateLobby();   // Usa la lógica real que ya tienes
+
+        if (_lobby != null)
+        {
+            // Soy host si mi PlayerId coincide con el HostId del lobby
+            _isHost = (_lobby.HostId == AuthenticationService.Instance.PlayerId);
+            _isReady = false;
+
+            // Cambiamos de la pantalla de código al HUD moderno
+            if (panelRelayLobby != null)
+                panelRelayLobby.SetActive(false);
+
+            if (panelRelayHUD != null)
+                panelRelayHUD.SetActive(true);
+
+            UpdateRelayHudTexts();
+
+            if (relayStatusText != null)
+                relayStatusText.text = "";
+        }
+        else
+        {
+            _isHost = false;
+            _isReady = false;
+
+            if (relayStatusText != null)
+                relayStatusText.text = $"Error al crear lobby: {_status}";
+        }
+    }
+
+
+    public async void OnRelayUiJoinLobbyClicked()
+    {
+        var code = relayCodeInputField != null ? relayCodeInputField.text.Trim() : "";
+
+        if (string.IsNullOrEmpty(code))
+        {
+            if (relayStatusText != null)
+                relayStatusText.text = "Debe ingresar un código de lobby.";
+            return;
+        }
+
+        if (relayStatusText != null)
+            relayStatusText.text = $"Uniéndose al lobby {code}...";
+
+        await JoinLobbyByCode(code);   // Usa tu método real
+
+        if (_lobby != null)
+        {
+            // Verificamos si este jugador es el host o no
+            _isHost = (_lobby.HostId == AuthenticationService.Instance.PlayerId);
+            _isReady = false;
+
+            if (panelRelayLobby != null)
+                panelRelayLobby.SetActive(false);
+
+            if (panelRelayHUD != null)
+                panelRelayHUD.SetActive(true);
+
+            UpdateRelayHudTexts();
+
+            if (relayStatusText != null)
+                relayStatusText.text = "";
+        }
+        else
+        {
+            _isHost = false;
+            _isReady = false;
+
+            if (relayStatusText != null)
+                relayStatusText.text = $"Error al unirse: {_status}";
+        }
+    }
+
+
+    public void OnRelayHudCopyCodeClicked()
+    {
+        // Si aún no hay lobby, no hay nada que copiar
+        if (_lobby == null)
+            return;
+
+        // Copiar al portapapeles
+        GUIUtility.systemCopyBuffer = _lobby.LobbyCode;
+
+        Debug.Log($"[RelayUI] Lobby code copiado al portapapeles: {_lobby.LobbyCode}");
+
+        // Opcional: feedback visual rápido
+        if (relayHudLobbyCodeText != null)
+            relayHudLobbyCodeText.text = $"LobbyCODE: {_lobby.LobbyCode} (copiado)";
+    }
+
+    public async void OnRelayHudToggleReady()
+    {
+        if (_lobby == null)
+            return;
+
+        try
+        {
+            // Alternamos el estado local
+            _isReady = !_isReady;
+
+            // Actualizar el texto del botón inmediatamente (feedback visual)
+            if (relayHudReadyButton != null)
+            {
+                var label = relayHudReadyButton.GetComponentInChildren<TMPro.TMP_Text>();
+                if (label != null)
+                    label.text = _isReady ? "Quitar listo" : "Marcar listo";
+            }
+
+            // Opciones para actualizar SOLO el campo "ready" del jugador actual en el Lobby ONLINE (Relay)
+            var options = new UpdatePlayerOptions
+            {
+                Data = new Dictionary<string, PlayerDataObject>
+                {
+                    ["ready"] = new PlayerDataObject(
+                        PlayerDataObject.VisibilityOptions.Public,
+                        _isReady ? "true" : "false"
+                    )
+                }
+            };
+
+            // 1) Actualizar READY en el Lobby de Relay (UGS)
+            await Lobbies.Instance.UpdatePlayerAsync(
+                _lobby.Id,
+                AuthenticationService.Instance.PlayerId,
+                options
+            );
+
+            // 2) Sincronizar READY también con LanLobbyState (NetworkList<LanPlayerEntry>)
+            if (LanLobbyState.Instance != null)
+            {
+                try
+                {
+                    LanLobbyState.Instance.ToggleReadyServerRpc(_isReady);
+                    Debug.Log($"[RelayUI] ToggleReadyServerRpc enviado a LanLobbyState con valor={_isReady}");
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning("[RelayUI] Error al llamar a ToggleReadyServerRpc: " + ex);
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[RelayUI] LanLobbyState.Instance es null, no se pudo sincronizar READY con LAN.");
+            }
+
+            // 3) Refrescamos el lobby para que la lista se actualice rápido
+            await RefreshLobby();
+
+            // 4) Actualizamos HUD online (lista de jugadores + botón iniciar)
+            UpdateRelayHudTexts();
+
+            Debug.Log($"[RelayUI] READY cambiado correctamente: {_isReady}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("[RelayUI] Error al cambiar READY: " + e);
+        }
+    }
+
+
+
+    public async void OnRelayHudLeaveLobby()
+    {
+        if (_lobby == null)
+            return;
+
+        try
+        {
+            // Si soy host, cierro el lobby completo.
+            if (_isHost)
+            {
+                await LobbyService.Instance.DeleteLobbyAsync(_lobby.Id);
+                Debug.Log("[RelayUI] Lobby eliminado por el host.");
+            }
+            else
+            {
+                // Si soy cliente, solo me salgo del lobby.
+                await LobbyService.Instance.RemovePlayerAsync(
+                    _lobby.Id,
+                    AuthenticationService.Instance.PlayerId
+                );
+                Debug.Log("[RelayUI] Jugador salió del lobby.");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError("[RelayUI] Error al salir del lobby: " + e);
+        }
+        finally
+        {
+            // Limpiar estado local
+            _lobby = null;
+            _isReady = false;
+
+            // Volver a la pantalla de crear/unirse online
+            if (panelRelayHUD != null)
+                panelRelayHUD.SetActive(false);
+
+            if (panelRelayLobby != null)
+                panelRelayLobby.SetActive(true);
+
+            if (relayStatusText != null)
+                relayStatusText.text = "Saliste del lobby.";
+        }
+    }
+
+    public void OnRelayHudStartGame()
+    {
+        // Solo el host puede iniciar
+        if (!_isHost)
+        {
+            Debug.LogWarning("[RelayUI] Solo el host puede iniciar la partida.");
+            return;
+        }
+
+        // Solo si todos están listos
+        if (!AllRelayPlayersReady())
+        {
+            Debug.LogWarning("[RelayUI] No todos los jugadores están listos.");
+            return;
+        }
+
+        // Reutilizamos la lógica general de StartGame()
+        StartGame();
+    }
+
+
+
+
+
+    public void OnRelayUiSaveNameClicked()
+    {
+        if (relayNameInputField != null)
+            playerDisplayName = relayNameInputField.text;
+
+        PlayerName.Set(string.IsNullOrWhiteSpace(playerDisplayName)
+            ? "Jugador"
+            : playerDisplayName.Trim());
+
+        if (relayStatusText != null)
+            relayStatusText.text = $"Nombre guardado: {PlayerName.Get()}";
+
+        Debug.Log("[RelayUI] Nombre guardado para Relay: " + PlayerName.Get());
+    }
+
+    // === Botón "Volver" desde los lobbies (LAN u ONLINE) ===
+    public void OnBackToModeSelect()
+    {
+        // Apagar paneles de lobby
+        if (panelLanLobby != null)
+            panelLanLobby.SetActive(false);
+
+        if (panelRelayLobby != null)
+            panelRelayLobby.SetActive(false);
+
+        // También apagamos el HUD LAN por si venimos de ahí
+        if (panelLanHUD != null)
+            panelLanHUD.SetActive(false);
+
+        // Y apagamos el HUD ONLINE por si venimos de Relay
+        if (panelRelayHUD != null)
+            panelRelayHUD.SetActive(false);
+
+        // Volver a la pantalla de selección de modo
+        if (panelNetMode != null)
+            panelNetMode.SetActive(true);
+
+        // Opcional: limpiar estado visual del Relay
+        if (relayCodeInputField != null)
+            relayCodeInputField.text = "";
+
+        if (relayStatusText != null)
+            relayStatusText.text = "";
+    }
+
     void EnsureLanStateSpawned()
     {
         // En “misma escena”, LanLobbyState ya está puesto como GameObject en la escena.
@@ -564,13 +916,98 @@ public class LobbyController : MonoBehaviour
         }
     }
 
+    void UpdateRelayHudTexts()
+    {
+        // Log para depurar
+        Debug.Log(
+            $"[RelayHUD] UpdateRelayHudTexts() - Mode={Mode}, " +
+            $"lobby nulo={_lobby == null}, " +
+            $"panelHUD activo={panelRelayHUD != null && panelRelayHUD.activeSelf}"
+        );
+
+        // 🔴 ANTES:
+        // if (Mode != NetMode.Relay)
+        //     return;
+
+        // ✅ AHORA: solo nos importa tener lobby y HUD activo
+        if (_lobby == null)
+            return;
+
+        if (panelRelayHUD == null || !panelRelayHUD.activeSelf)
+            return;
+
+        // --- Código del lobby ---
+        if (relayHudLobbyCodeText != null)
+            relayHudLobbyCodeText.text = $"LobbyCODE: {_lobby.LobbyCode}";
+
+        // --- Lista de jugadores ---
+        if (relayHudPlayersText != null)
+        {
+            var sb = new System.Text.StringBuilder();
+            var players = _lobby.Players;
+
+            if (players == null || players.Count == 0)
+            {
+                sb.AppendLine("(sin jugadores)");
+            }
+            else
+            {
+                foreach (var p in players)
+                {
+                    string name = "Jugador";
+                    string readyStr = "No listo";
+
+                    if (p.Data != null)
+                    {
+                        if (p.Data.TryGetValue("name", out var nameObj) &&
+                            !string.IsNullOrEmpty(nameObj.Value))
+                            name = nameObj.Value;
+
+                        if (p.Data.TryGetValue("ready", out var readyObj) &&
+                            readyObj.Value == "true")
+                            readyStr = "Listo";
+                    }
+
+                    Debug.Log($"[RelayHUD] Player en lobby → name={name}, ready={readyStr}");
+                    sb.AppendLine($"- {name} ({readyStr})");
+                }
+            }
+
+            relayHudPlayersText.text = sb.ToString();
+            Debug.Log($"[RelayHUD] Texto pintado en HUD:\n{relayHudPlayersText.text}");
+        }
+
+        // --- Botón INICIAR JUEGO (HOST) ---
+        if (relayHudStartGameButton != null)
+        {
+            relayHudStartGameButton.interactable = _isHost && AllRelayPlayersReady();
+        }
+    }
+
+
+    bool AllRelayPlayersReady()
+    {
+        if (_lobby == null || _lobby.Players == null || _lobby.Players.Count == 0)
+            return false;
+
+        foreach (var p in _lobby.Players)
+        {
+            if (p.Data == null ||
+                !p.Data.TryGetValue("ready", out var readyObj) ||
+                readyObj.Value != "true")
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 
     void Update()
     {
         // Actualizamos siempre los textos; internamente
         // UpdateLanHudTexts ya hace los checks de panel activo.
         UpdateLanHudTexts();
-
+        UpdateRelayHudTexts();
         // Si no estamos en modo LAN no hacemos nada más.
         if (Mode != NetMode.LAN)
             return;
@@ -961,21 +1398,34 @@ public class LobbyController : MonoBehaviour
                 _ = RefreshLobby();
 
                 // Clientes: si el host puso "starting", conectarse por Relay
-                if (!_isHost && Mode == NetMode.Relay &&
+                bool shouldConnectRelayClient =
+                    !_isHost &&
                     GetLobbyData("state") == "starting" &&
-                    !NetworkManager.Singleton.IsListening)
+                    !NetworkManager.Singleton.IsListening;
+
+                if (shouldConnectRelayClient)
                 {
                     string code = GetLobbyData("joinCode");
+                    Debug.Log($"[Relay] PollLobby detecta state='starting'. Intentando conectar cliente con joinCode={code}");
+
                     if (!string.IsNullOrEmpty(code))
+                    {
                         _ = StartRelayClient(code);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Relay] PollLobby: state='starting' pero joinCode vacío.");
+                    }
                 }
             }
             catch (Exception e)
             {
-                _status = $"Poll error: {e.Message}";
+                _status = "Error en PollLobby: " + e.Message;
+                Debug.LogWarning("[Lobby] PollLobby exception: " + e);
             }
         }
     }
+
 
     async Task RefreshLobby()
     {
@@ -1018,7 +1468,7 @@ public class LobbyController : MonoBehaviour
             string joinCode;
             try
             {
-                Debug.Log("[Lobby] Requesting join code for allocation " + alloc.AllocationId + "...");
+                Debug.Log("[Lobby] Requesting join code for allocation " + alloc.AllocationId + ".");
                 joinCode = await RelayService.Instance.GetJoinCodeAsync(alloc.AllocationId);
                 Debug.Log("[Lobby] Join code obtained: " + joinCode);
             }
@@ -1032,16 +1482,25 @@ public class LobbyController : MonoBehaviour
             await Lobbies.Instance.UpdateLobbyAsync(_lobby.Id, new UpdateLobbyOptions
             {
                 Data = new Dictionary<string, DataObject>
-                {
-                    { "state",    new DataObject(DataObject.VisibilityOptions.Public, "starting") },
-                    { "joinCode", new DataObject(DataObject.VisibilityOptions.Public, joinCode) }
-                }
+            {
+                { "state",    new DataObject(DataObject.VisibilityOptions.Public, "starting") },
+                { "joinCode", new DataObject(DataObject.VisibilityOptions.Public, joinCode) }
+            }
             });
 
             await StartRelayHost(alloc);
             _status = $"Juego iniciado. RelayCode: {joinCode}";
             _hideHudRelay = true;
             if (_pollCo != null) StopCoroutine(_pollCo); // opcional
+
+            if (panelRelayHUD != null)
+                panelRelayHUD.SetActive(false);
+            if (panelRelayLobby != null)
+                panelRelayLobby.SetActive(false);
+            if (panelNetMode != null)
+                panelNetMode.SetActive(false);
+            if (netModeCanvasRoot != null)
+                netModeCanvasRoot.SetActive(false);
         }
         catch (Exception e)
         {
@@ -1136,6 +1595,27 @@ public class LobbyController : MonoBehaviour
         {
             Debug.LogWarning("[Relay] Could not trigger timer start after host: " + e);
         }
+        // === Después de arrancar el Host por Relay, iniciar la partida igual que en LAN ===
+        try
+        {
+            // Asegurarnos de que el objeto LanLobbyState existe
+            EnsureLanStateSpawned();
+            var state = LanLobbyState.Instance;
+
+            if (state != null && state.IsServer)
+            {
+                Debug.Log("[Relay] Relay host listo, llamando a LanLobbyState.StartMatchAsHost().");
+                state.StartMatchAsHost();
+            }
+            else
+            {
+                Debug.LogWarning("[Relay] No se pudo iniciar partida: LanLobbyState.Instance es null o no es server.");
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[Relay] Error llamando a StartMatchAsHost después de StartRelayHost: " + e);
+        }
     }
 
 
@@ -1211,8 +1691,19 @@ public class LobbyController : MonoBehaviour
                         _status = "Cliente conectado por Relay.";
                         _hideHudRelay = true;
                         if (_pollCo != null) StopCoroutine(_pollCo); // opcional
-                        Debug.Log("[Relay] Client is connected (IsClient=true).");
+                        Debug.Log("[Relay] StartRelayClient: nm.IsClient==true, client conectado por Netcode.");
+
+                        // 👇 NUEVO: apagar el HUD del lobby también en el cliente
+                        if (panelRelayHUD != null)
+                            panelRelayHUD.SetActive(false);
+                        if (panelRelayLobby != null)
+                            panelRelayLobby.SetActive(false);
+                        if (panelNetMode != null)
+                            panelNetMode.SetActive(false);
+                        if (netModeCanvasRoot != null)
+                            netModeCanvasRoot.SetActive(false);
                     }
+
                     else
                     {
                         Debug.LogWarning("[Relay] StartClient invoked but NetworkManager reports IsClient=" + nm.IsClient + ", IsListening=" + nm.IsListening);
