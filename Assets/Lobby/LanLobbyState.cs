@@ -32,6 +32,15 @@ public class LanLobbyState : NetworkBehaviour
 
     [Header("Gameplay Scene Name (leave current scene name to spawn in same scene)")]
     [SerializeField] string gameplaySceneName = "Game";
+    // Devuelve el nombre de la escena de juego.
+    // Si el campo gameplaySceneName está vacío, usamos la escena actual.
+    string GetTargetSceneName()
+    {
+        if (string.IsNullOrWhiteSpace(gameplaySceneName))
+            return SceneManager.GetActiveScene().name;
+
+        return gameplaySceneName;
+    }
 
     public NetworkList<LanPlayerEntry> Players;
     public readonly NetworkVariable<bool> GameStarted =
@@ -48,7 +57,11 @@ public class LanLobbyState : NetworkBehaviour
         Players = new NetworkList<LanPlayerEntry>();
         Instance = this;
         DontDestroyOnLoad(gameObject); // por si luego cambias de escena
+
+        var current = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        Debug.Log($"[LanLobbyState] Awake en escena '{current}'. gameplaySceneName='{gameplaySceneName}'");
     }
+
 
     public override void OnNetworkSpawn()
     {
@@ -166,11 +179,10 @@ public class LanLobbyState : NetworkBehaviour
     {
         // Only run on clients
         if (!IsClient) return;
-
-        if (!string.Equals(scene.name, gameplaySceneName)) return;
-
         // If the game hasn't been started by host, ignore
         if (!GameStarted.Value) return;
+
+        if (!string.Equals(scene.name, GetTargetSceneName())) return;
 
         if (_reportedReadyForSpawn) return;
 
@@ -318,64 +330,42 @@ public class LanLobbyState : NetworkBehaviour
     // Host pulsa "Iniciar"
     public void StartMatchAsHost()
     {
+        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}");
 
-        bool allReady = AllReady();
-        Debug.Log($"[LanLobbyState] StartMatchAsHost called. IsServer={IsServer}, AllReady={allReady}");
-
+        // Solo el servidor puede iniciar la partida
         if (!IsServer)
         {
             Debug.LogWarning("[LanLobbyState] Cannot start match: Not server");
             return;
         }
 
-        // 🔴 AQUÍ CAMBIAMOS LA LÓGICA
-        if (!allReady)
-        {
-            // Intentamos detectar si estamos en modo Relay para NO bloquear
-            bool isRelay = false;
-            try
-            {
-                // NetRuntime.Mode es el mismo enum que usas en LobbyController
-                isRelay = (NetRuntime.Mode == NetMode.Relay);
-            }
-            catch { }
-
-            if (!isRelay)
-            {
-                // LAN normal: seguimos exigiendo que todos estén listos
-                Debug.LogWarning("[LanLobbyState] Cannot start match (LAN): Not all players are ready");
-                LogPlayerStates();
-                return;
-            }
-            else
-            {
-                // RELAY: confiamos en que UGS ya validó READY y continuamos
-                Debug.LogWarning("[LanLobbyState] Not all players marked Ready en NetworkList, " +
-                                 "pero estamos en Relay y UGS ya validó READY. Continuando de todas formas.");
-            }
-        }
-
-        //if (!IsServer || !AllReady()) return;
-
+        // ✅ CONFIAMOS en que la UI (LAN o Relay) ya verificó que todos están listos.
+        // Aquí NO volvemos a revisar AllReady, para no bloquear el cambio de escena.
 
         GameStarted.Value = true;
 
-        Debug.Log("[LanLobbyState] Iniciando partida. Spawneando jugadores...");
+        Debug.Log("[LanLobbyState] Iniciando partida. Spawneando jugadores / cambiando escena...");
 
         var current = SceneManager.GetActiveScene().name;
+        var target = GetTargetSceneName();   // Usa el helper que ya definimos
 
-        Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {gameplaySceneName}");
+        Debug.Log($"[LanLobbyState] Current scene: {current}, Target scene: {target}");
 
-        if (string.Equals(current, gameplaySceneName))
+        if (string.Equals(current, target))
         {
-            SpawnAllPlayersNow(); // misma escena
+            // Lobby y juego en la misma escena
+            Debug.Log("[LanLobbyState] Lobby y juego en la misma escena. Haciendo SpawnAllPlayersNow...");
+            SpawnAllPlayersNow();
             StartCoroutine(StartTimerAfterSpawn());
         }
         else
         {
-            NetworkManager.SceneManager.LoadScene(gameplaySceneName, LoadSceneMode.Single);
+            // Escena diferente: usamos SceneManager de Netcode
+            Debug.Log("[LanLobbyState] Cargando escena de juego en red...");
+            NetworkManager.SceneManager.LoadScene(target, LoadSceneMode.Single);
         }
     }
+
 
     void LogPlayerStates()
     {
@@ -393,7 +383,7 @@ public class LanLobbyState : NetworkBehaviour
     {
         if (!IsServer) return;
         if (!GameStarted.Value) return;
-        if (!string.Equals(sceneName, gameplaySceneName)) return;
+        if (!string.Equals(sceneName, GetTargetSceneName())) return;
 
         Debug.Log($"[LanLobbyState] OnLoadEventCompleted for scene '{sceneName}'. Completed: {clientsCompleted.Count}, TimedOut: {clientsTimedOut.Count}");
         if (clientsCompleted != null && clientsCompleted.Count > 0)

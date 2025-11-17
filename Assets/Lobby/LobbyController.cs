@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
+using UnityEngine.SceneManagement;
 
 // UGS
 using Unity.Services.Core;
@@ -31,7 +32,7 @@ public class LobbyController : MonoBehaviour
     public int maxPlayers = 8;
     public string playerDisplayName = "Jugador";
     [SerializeField] private string gameplaySceneName = "PruebasTheLastKing";
-    
+
     [Header("LAN UI (Canvas)")]
     [SerializeField] TMP_InputField inputIpField;
     [SerializeField] TMP_InputField inputPortField;
@@ -232,7 +233,22 @@ public class LobbyController : MonoBehaviour
             netModeCanvasRoot.SetActive(false);
 
         UpdateLanHudTexts();
+
+        // 🚀 NUEVO: cargar escena de juego para todos (host + clientes)
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+        {
+            Debug.Log("[LAN] Cargando escena de juego: " + gameplaySceneName);
+            NetworkManager.Singleton.SceneManager.LoadScene(
+                gameplaySceneName,
+                LoadSceneMode.Single
+            );
+        }
+        else
+        {
+            Debug.LogWarning("[LAN] OnLanHudStartGame: NetworkManager no es server al intentar cargar escena.");
+        }
     }
+
 
 
     // Suscribirse una sola vez al evento de la NetworkList de LanLobbyState
@@ -1412,7 +1428,6 @@ public class LobbyController : MonoBehaviour
 
         try
         {
-
             await EnsureServices();
             Allocation alloc;
             try
@@ -1442,7 +1457,6 @@ public class LobbyController : MonoBehaviour
                 return;
             }
 
-
             await Lobbies.Instance.UpdateLobbyAsync(_lobby.Id, new UpdateLobbyOptions
             {
                 Data = new Dictionary<string, DataObject>
@@ -1465,6 +1479,20 @@ public class LobbyController : MonoBehaviour
                 panelNetMode.SetActive(false);
             if (netModeCanvasRoot != null)
                 netModeCanvasRoot.SetActive(false);
+
+            // 🚀 NUEVO: una vez que el host Relay está activo, cargar la escena de juego
+            if (NetworkManager.Singleton != null && NetworkManager.Singleton.IsServer)
+            {
+                Debug.Log("[Relay] Cargando escena de juego: " + gameplaySceneName);
+                NetworkManager.Singleton.SceneManager.LoadScene(
+                    gameplaySceneName,
+                    LoadSceneMode.Single
+                );
+            }
+            else
+            {
+                Debug.LogWarning("[Relay] StartGame: NetworkManager no es server al intentar cargar escena.");
+            }
         }
         catch (Exception e)
         {
@@ -1472,6 +1500,7 @@ public class LobbyController : MonoBehaviour
             Debug.LogError(e);
         }
     }
+
 
     // ===== Relay helpers =====
 
