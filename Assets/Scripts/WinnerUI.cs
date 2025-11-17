@@ -19,6 +19,15 @@ public class WinnerUI : MonoBehaviour
     [Tooltip("Sprite to show for eliminated players (drag Assets/Images/game over.png here)")]
     public Sprite gameOverSprite;
 
+    [Header("Auto-Hide")]
+    [Tooltip("Auto-hide the Game Over message after a short time (does NOT apply to the winner banner).")]
+    public bool autoHideGameOver = true;
+
+    [Tooltip("Seconds before auto-hiding the Game Over message.")]
+    public float gameOverHideSeconds = 3f;
+
+    Coroutine _hideCo;
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -38,7 +47,7 @@ public class WinnerUI : MonoBehaviour
         go.AddComponent<CanvasScaler>();
         go.AddComponent<GraphicRaycaster>();
 
-        // Panel
+        // Panel (full screen dim)
         panel = new GameObject("Panel");
         panel.transform.SetParent(go.transform, false);
         var img = panel.AddComponent<Image>();
@@ -54,7 +63,7 @@ public class WinnerUI : MonoBehaviour
         mtGO.transform.SetParent(panel.transform, false);
         mainText = mtGO.AddComponent<Text>();
         mainText.alignment = TextAnchor.MiddleCenter;
-    mainText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        mainText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         mainText.fontSize = 72;
         mainText.color = Color.yellow;
         var mtRect = mainText.GetComponent<RectTransform>();
@@ -68,7 +77,7 @@ public class WinnerUI : MonoBehaviour
         stGO.transform.SetParent(panel.transform, false);
         subText = stGO.AddComponent<Text>();
         subText.alignment = TextAnchor.MiddleCenter;
-    subText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        subText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         subText.fontSize = 28;
         subText.color = Color.white;
         var stRect = subText.GetComponent<RectTransform>();
@@ -83,13 +92,10 @@ public class WinnerUI : MonoBehaviour
         resultImage = riGO.AddComponent<Image>();
         resultImage.preserveAspect = true;
         var riRect = resultImage.GetComponent<RectTransform>();
-        // Centered box occupying middle of screen
         riRect.anchorMin = new Vector2(0.25f, 0.25f);
         riRect.anchorMax = new Vector2(0.75f, 0.75f);
         riRect.offsetMin = Vector2.zero;
         riRect.offsetMax = Vector2.zero;
-
-        // Sprites are expected to be assigned manually in the Inspector. No automatic loading performed.
 
         // Configure Image component for reliable display
         resultImage.type = Image.Type.Simple;
@@ -105,8 +111,11 @@ public class WinnerUI : MonoBehaviour
         }
     }
 
-    // No automatic sprite loaders - sprites must be assigned in the Inspector for predictable behavior in builds.
+    // Public API -------------------------------------------------------------
 
+    // Original API (kept for compatibility). The 'isLocal' flag means:
+    // - true  -> this client is the winner (show WINNER banner, persistent)
+    // - false -> this client is not the winner / eliminated (show GAME OVER, auto-hide if enabled)
     public static void Show(string winnerName, bool isLocal)
     {
         if (Instance == null)
@@ -117,12 +126,37 @@ public class WinnerUI : MonoBehaviour
         Instance.InternalShow(winnerName, isLocal);
     }
 
-    void InternalShow(string winnerName, bool isLocal)
+    // Convenience if you want to trigger a temporary Game Over explicitly:
+    public static void ShowTemporaryGameOver(float seconds = 3f)
+    {
+        if (Instance == null)
+        {
+            var go = new GameObject("WinnerUI");
+            Instance = go.AddComponent<WinnerUI>();
+        }
+        // Pass isLocal=false to force Game Over visuals
+        Instance.InternalShow(winnerName: "", isLocal: false, forceHideSeconds: seconds);
+    }
+
+    public static void Hide()
+    {
+        if (Instance != null) Instance.InternalHide();
+    }
+
+    // Internals -------------------------------------------------------------
+
+    void InternalShow(string winnerName, bool isLocal, float? forceHideSeconds = null)
     {
         if (panel == null) CreateUI();
         panel.SetActive(true);
+
+        // Clear any pending auto-hide
+        if (_hideCo != null) { StopCoroutine(_hideCo); _hideCo = null; }
+
         // If sprites are available, prefer showing images. Otherwise fall back to text messages.
-        if (resultImage != null && (winnerSprite != null || gameOverSprite != null))
+        bool usingSprites = resultImage != null && (winnerSprite != null || gameOverSprite != null);
+
+        if (usingSprites)
         {
             // hide text
             if (mainText != null) mainText.gameObject.SetActive(false);
@@ -131,37 +165,63 @@ public class WinnerUI : MonoBehaviour
             resultImage.gameObject.SetActive(true);
             if (isLocal)
             {
+                // Local winner -> Winner sprite (persistent)
                 resultImage.sprite = winnerSprite ?? gameOverSprite;
+                // Do not auto-hide winner banner
             }
             else
             {
+                // Not local winner -> Game Over sprite
                 resultImage.sprite = gameOverSprite ?? winnerSprite;
+
+                // Auto-hide after a short time (default 3s) so it doesn't block spectator view
+                float secs = forceHideSeconds.HasValue ? forceHideSeconds.Value : gameOverHideSeconds;
+                if (autoHideGameOver && secs > 0f) _hideCo = StartCoroutine(HideAfterSeconds(secs));
             }
         }
         else
         {
+            // Fallback to text messages
             if (mainText != null) mainText.gameObject.SetActive(true);
             if (subText != null) subText.gameObject.SetActive(true);
+
             if (isLocal)
             {
                 mainText.text = "YOU ARE THE WINNER!";
-                subText.text = "Congratulations!";
+                subText.text  = "Congratulations!";
+                // Winner text stays visible
             }
             else
             {
-                mainText.text = "MATCH OVER";
-                subText.text = $"Winner: {winnerName}";
+                mainText.text = "GAME OVER";
+                subText.text  = string.IsNullOrEmpty(winnerName) ? "Match continues..." : $"Winner: {winnerName}";
+
+                float secs = forceHideSeconds.HasValue ? forceHideSeconds.Value : gameOverHideSeconds;
+                if (autoHideGameOver && secs > 0f) _hideCo = StartCoroutine(HideAfterSeconds(secs));
             }
         }
     }
 
-    public static void Hide()
+    public static void ForceHideNow()
     {
-        if (Instance != null) Instance.InternalHide();
+        if (Instance == null) return;
+        if (Instance._hideCo != null)
+        {
+            Instance.StopCoroutine(Instance._hideCo);
+            Instance._hideCo = null;
+        }
+        Hide();
     }
 
     void InternalHide()
     {
         if (panel != null) panel.SetActive(false);
+    }
+
+    System.Collections.IEnumerator HideAfterSeconds(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        InternalHide();
+        _hideCo = null;
     }
 }
