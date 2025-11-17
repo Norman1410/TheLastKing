@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 8caded0b1dc12c44ebb2c36f35de6242
+guid: b9ae9d28c8bc69a43b1be4a9fe8e40e9
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: LAN button_0
+      name: Designer (5)_0
       rect:
         serializedVersion: 2
-        x: 39
-        y: 256
+        x: 49
+        y: 375
         width: 936
-        height: 499
+        height: 271
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 171b0ed32006fa64e9339722c196e3b9
-      internalID: 1384813269
+      spriteID: 305fd965afe09374ea8e34bfc240feea
+      internalID: 1542021383
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 03cecf07d07250f4fa4470592169ebd0
+    spriteID: 72ac94be4222a5e46b0fba80f89595fc
     internalID: 0
     vertices: []
     indices: 
@@ -158,7 +158,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      LAN button_0: 1384813269
+      Designer (5)_0: 1542021383
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

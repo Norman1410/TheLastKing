@@ -2691,12 +2691,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  crownObject: {fileID: 0}
+  crownObject: {fileID: 5702624243050419136}
   robDistance: 2
   playerLayer:
     serializedVersion: 2
     m_Bits: 8
-  crosshair: {fileID: 4366355541040660706, guid: cb84303bd9f8a454b81c07efd0884760, type: 3}
+  crosshair: {fileID: 582799584567912389, guid: 75b4a9190de069f41846724acc55b2a2, type: 3}
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   canRobColor: {r: 1, g: 0, b: 0, a: 1}
   playerCamera: {fileID: 2692074369058656737}
@@ -2794,7 +2794,7 @@ MonoBehaviour:
   runSpeed: 8
   jumpHeight: 1.5
   gravity: -50
-  mouseSensitivity: 2
+  mouseSensitivity: 5
   maxLookAngle: 80
   groundCheck: {fileID: 2087591144217242851}
   groundDistance: 0.3
@@ -3522,5 +3522,10 @@ PrefabInstance:
 --- !u!4 &4929218540994382202 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3077936453679974433, guid: 016f5c53f6dd2dc44bcafdc9c9d679df, type: 3}
+  m_PrefabInstance: {fileID: 7989135875993715035}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &5702624243050419136 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2449067907349631643, guid: 016f5c53f6dd2dc44bcafdc9c9d679df, type: 3}
   m_PrefabInstance: {fileID: 7989135875993715035}
   m_PrefabAsset: {fileID: 0}
