@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 3845535766208974272}
   - component: {fileID: 5689403126977712966}
-  - component: {fileID: 4806862014523079910}
   m_Layer: 0
   m_Name: Sudden_Wall_Trap
   m_TagString: Untagged
@@ -47,20 +46,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wallObject: {fileID: 5343540746828351863}
-  activeTime: 1.5
+  activeTime: 8
   inactiveTime: 3
---- !u!114 &4806862014523079910
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1400567388333151653}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c440578e654697418b8b268e97cf12b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  wallCollider: {fileID: 9178019163449224699}
+  dropDirection: {x: 0, y: -1, z: 0}
+  dropForce: 3
 --- !u!1 &5343540746828351863
 GameObject:
   m_ObjectHideFlags: 0

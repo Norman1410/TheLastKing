@@ -336,59 +336,6 @@ public class PlayerRob : NetworkBehaviour
     }
 
 
-    // Angelica Crown falling animation
-
-    public void DropCrownWithAnimation(string animationType)
-    {
-        if (!IsServer) return;
-
-        if (hasCrown.Value == false) return;
-
-        // 1) Remove crown
-        hasCrown.Value = false;
-
-        // 2) Tell all clients to play animation
-        CrownAnimationClientRpc(animationType);
-    }
-    
-    // Angelica Crown hit ground -> spawn pickup
-    public void CrownHitGround()
-    {
-        if (!IsServer) return;
-
-        // Spawn ground pickup
-        GameObject pickup = Instantiate(
-            crownPickupPrefab, 
-            crownObject.transform.position, 
-            Quaternion.identity
-        );
-
-        pickup.GetComponent<NetworkObject>().Spawn();
-
-        // Hide the crown on head (already off)
-        crownObject.SetActive(false);
-    }
-
-
-    [ClientRpc]
-    void CrownAnimationClientRpc(string animType)
-    {
-        if (crownObject == null) return;
-
-        Animator anim = crownObject.GetComponent<Animator>();
-        if (anim != null)
-        {
-            anim.ResetTrigger("FallOff");
-            anim.ResetTrigger("FlyOff");
-
-            if (animType == "wall")
-                anim.SetTrigger("FallOff");
-            else
-                anim.SetTrigger("FlyOff");
-        }
-    }
-
-
     void OnGUI()
     {
         if (!IsOwner) return;
