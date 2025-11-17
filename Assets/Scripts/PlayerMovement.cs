@@ -1,3 +1,4 @@
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -231,11 +232,11 @@ public class FirstPersonController : MonoBehaviour
 
         //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
         Debug.Log($"Animator Parameters -->");
-        Debug.Log($"  Speed: {animator.GetFloat("Speed")}");
-        Debug.Log($"  Direction: {animator.GetFloat("Direction")}");
-        Debug.Log($" - IsJumping: {animator.GetBool("IsJumping")}");
-        Debug.Log($" - IsRunning: {animator.GetBool("IsRunning")}");
-        Debug.Log($" - IsGrounded: {animator.GetBool("IsGrounded")}");
+        if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
+        if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
+        //Debug.Log($" - IsJumping: {animator.GetBool("IsJumping")}");
+        //Debug.Log($" - IsRunning: {animator.GetBool("IsRunning")}");
+        //Debug.Log($" - IsGrounded: {animator.GetBool("IsGrounded")}");
     }
 
 
