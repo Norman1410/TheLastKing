@@ -347,21 +347,22 @@ MonoBehaviour:
   powersHUD: {fileID: 3272593967697959964}
   useKey: 114
   prefabIconMappings:
-  - prefab: {fileID: 3524565760851017240, guid: 191dccb211a3e504fa038ecb80b2a234, type: 3}
-    icon: {fileID: -933971140, guid: f5eaa56f49bcf36459557cb603fcc365, type: 3}
+  - prefab: {fileID: 823868531863546545, guid: 4d9d89192ccbd4a418b6747e31d5c351, type: 3}
+    icon: {fileID: -619531327, guid: 1ce9ecc01b1825f4b8eceae635be95e1, type: 3}
     powerType: 3
-  - prefab: {fileID: 2396345212421987751, guid: 3f0202cc031f8b24ba5c084e8ea8eeaf, type: 3}
-    icon: {fileID: -1659836709, guid: b13309fd31dc4b5439ff002a9cb8d449, type: 3}
+  - prefab: {fileID: 2961992911540661266, guid: d2eeef5244c023444971c1214671dd6b, type: 3}
+    icon: {fileID: 620138213, guid: ab08f3880e8031c48a5b7cc54374686e, type: 3}
     powerType: 2
-  - prefab: {fileID: 997691891977089800, guid: 11f1820be2ba2cd47907e324b526f02f, type: 3}
-    icon: {fileID: 983677381, guid: c8dadb0a32489274ba3c340777dbed48, type: 3}
+  - prefab: {fileID: 2992461036239336102, guid: b7af5a74b254a7c42bfdef25fb016486, type: 3}
+    icon: {fileID: 334493778, guid: 779b36d96008c80439e8bb954c86dadc, type: 3}
     powerType: 1
-  - prefab: {fileID: 7813452240099425719, guid: 500f8ba28551a464fa09750b31f142e3, type: 3}
-    icon: {fileID: -334708359, guid: 55cd7743eab30a74aa139980d76fde79, type: 3}
+  - prefab: {fileID: 8547863810078993965, guid: aa1f77701b0221d43aa0f9f7157d1bc1, type: 3}
+    icon: {fileID: -332265249, guid: 2bf6d919e0b538746ae176947e654fc3, type: 3}
     powerType: 0
   - prefab: {fileID: 6322971991296647575, guid: 912b1558960138c44a5d11d3719aa3e9, type: 3}
     icon: {fileID: -702678119, guid: 074e338c1f7baf844bb1a4f4b1b798b6, type: 3}
     powerType: 4
+  powerCooldownDuration: 1
 --- !u!1 &1544556075014297621
 GameObject:
   m_ObjectHideFlags: 0
@@ -1664,6 +1665,7 @@ GameObject:
   - component: {fileID: 6656697848171417622}
   - component: {fileID: 7660396239978888093}
   - component: {fileID: 5806351486050689295}
+  - component: {fileID: -6706354791993267927}
   m_Layer: 3
   m_Name: PlayerNetwork
   m_TagString: Player
@@ -1913,6 +1915,18 @@ CapsuleCollider:
   m_Height: 1.4288498
   m_Direction: 1
   m_Center: {x: 0, y: 0.5693621, z: 0.014539123}
+--- !u!114 &-6706354791993267927
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6996942344717257674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4879d7277c2a224689fb048f4cba022, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &7576809096421748795
 GameObject:
   m_ObjectHideFlags: 0

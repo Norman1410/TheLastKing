@@ -1,46 +1,25 @@
 using UnityEngine;
-using System.Collections;
 
 public class TurboSprint : PowerUp
 {
-    public float speedMultiplier = 3f;   // Qu� tanto aumenta la velocidad
-    public float effectDuration = 6f;          // Cu�nto dura el poder
-
-    private FirstPersonController playerController;
-    private bool isCollected = false;
+    // 'speedMultiplier', 'effectDuration', 'playerController' YA NO son necesarios aquí.
 
     public override void Activate(GameObject player)
     {
-        playerController = player.GetComponent<FirstPersonController>();
+        // 1. Intentamos añadir el poder al PowerManager.
+        bool added = PowerManager.Instance.AddPower(PowerType.Boost, this.gameObject);
 
-        if (playerController != null)
+        if (added)
         {
-            isCollected = true;
-            Debug.Log("TurboSprint recogido. Presiona R para activarlo.");
-            gameObject.SetActive(false);
-
-            // Le decimos al jugador que tiene este poder disponible
-            playerController.StartCoroutine(WaitForActivation());
+            // 2. Si se añadió con éxito, destruimos el objeto de recogida.
+            Debug.Log("TurboSprint recogido. Añadido al PowerManager.");
+            Destroy(gameObject);
+        }
+        else
+        {
+            Debug.Log("Slots de poder llenos.");
         }
     }
 
-    private IEnumerator WaitForActivation()
-    {
-        // Espera hasta que el jugador presione R
-        yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.R));
-
-        Debug.Log("TurboSprint activado!");
-        float originalSpeed = playerController.walkSpeed;
-        playerController.walkSpeed *= speedMultiplier;
-
-        // Espera el tiempo de duraci�n del poder
-        yield return new WaitForSeconds(effectDuration);
-
-        // Vuelve la velocidad a la normalidad
-        playerController.walkSpeed = originalSpeed;
-        Debug.Log("TurboSprint terminado.");
-
-        // Destruye el objeto del poder
-        Destroy(gameObject);
-    }
+    // ELIMINAMOS la corrutina WaitForActivation() y toda la lógica de velocidad.
 }

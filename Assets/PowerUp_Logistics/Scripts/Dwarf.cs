@@ -1,50 +1,31 @@
 using UnityEngine;
-using System.Collections;
 
 public class Dwarf : PowerUp
 {
-    public float sizeSplit = 0.3f; // cuanto se encoge el jugador
-    public float effectDuration = 6f;         // duracion del poder
-    private bool isCollected = false;
-
-    private Vector3 originalScale;
+    // Las variables 'sizeSplit', 'effectDuration', 'originalScale' YA NO son necesarias aquí, 
+    // pues la lógica del efecto se mueve a PowerManager.
+    
+    // No necesitamos más variables internas.
 
     public override void Activate(GameObject player)
     {
-        // Guardamos la escala original del jugador
-        originalScale = player.transform.localScale;
+        // 1. Intentamos añadir el poder al PowerManager.
+        // PowerType.MegaSize es el tipo de enum que usa PowerManager para este efecto.
+        bool added = PowerManager.Instance.AddPower(PowerType.Dwarf, this.gameObject);
 
-        if (!isCollected)
+        if (added)
         {
-            isCollected = true;
-            Debug.Log("Dwarf recogido. Presiona R para activarlo.");
-
-            // Desactivar el objeto del poder
-            gameObject.SetActive(false);
-
-            // Esperar a que el jugador presione R
-            player.GetComponent<MonoBehaviour>().StartCoroutine(WaitForActivation(player));
+            // 2. Si se añadió con éxito (había slot disponible), destruimos el objeto de recogida.
+            Debug.Log("Dwarf recogido. Añadido al PowerManager.");
+            Destroy(gameObject);
+        }
+        else
+        {
+            // Opcional: Si no se pudo añadir.
+            Debug.Log("Slots de poder llenos.");
+            // Si quieres que el objeto permanezca en el mundo si no hay slot, no hagas nada aquí.
         }
     }
-
-    private IEnumerator WaitForActivation(GameObject player)
-    {
-        // Espera a que el jugador presione R
-        yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.R));
-
-        Debug.Log("Dwarf activado!");
-
-        // Reducir tamaño
-        player.transform.localScale = originalScale * sizeSplit;
-
-        // Esperar la duracion del efecto
-        yield return new WaitForSeconds(effectDuration);
-
-        // Restaurar tamaño original
-        player.transform.localScale = originalScale;
-        Debug.Log("Dwarf termino!");
-
-        // Destruir el objeto del poder
-        Destroy(gameObject);
-    }
+    
+    // ELIMINAMOS la corrutina WaitForActivation() y toda la lógica del efecto de tamaño.
 }
