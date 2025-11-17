@@ -30,7 +30,8 @@ public class LobbyController : MonoBehaviour
     [Header("Relay + Lobby")]
     public int maxPlayers = 8;
     public string playerDisplayName = "Jugador";
-
+    [SerializeField] private string gameplaySceneName = "PruebasTheLastKing";
+    
     [Header("LAN UI (Canvas)")]
     [SerializeField] TMP_InputField inputIpField;
     [SerializeField] TMP_InputField inputPortField;
