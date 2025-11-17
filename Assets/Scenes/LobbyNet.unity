@@ -5315,7 +5315,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  gameplaySceneName: LobbyNet
+  gameplaySceneName: Pruebas_TheLastKing
 --- !u!4 &1510181991
 Transform:
   m_ObjectHideFlags: 0
