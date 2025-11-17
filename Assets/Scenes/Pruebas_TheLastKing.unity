@@ -4510,6 +4510,7 @@ MonoBehaviour:
   - {fileID: 2961992911540661266, guid: d2eeef5244c023444971c1214671dd6b, type: 3}
   - {fileID: 2992461036239336102, guid: b7af5a74b254a7c42bfdef25fb016486, type: 3}
   - {fileID: 8547863810078993965, guid: aa1f77701b0221d43aa0f9f7157d1bc1, type: 3}
+  - {fileID: 5442309375222878638, guid: 7f490f0aaf28f7545a627fdc9ba3cbda, type: 3}
   respawnTime: 3
 --- !u!1 &1461308139
 GameObject:
