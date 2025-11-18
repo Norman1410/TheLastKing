@@ -16,7 +16,7 @@ public class SpawnAllocator : NetworkBehaviour
 
     private void Awake()
     {
-        _spawns = FindObjectOfType<NetworkSpawnPoints>();
+        _spawns = FindAnyObjectByType<NetworkSpawnPoints>();
         if (_spawns == null)
             Debug.LogError("SpawnAllocator: No hay un NetworkSpawnPoints en la escena.");
         else
