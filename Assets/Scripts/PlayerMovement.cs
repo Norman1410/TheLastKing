@@ -34,8 +34,7 @@ public class FirstPersonController : MonoBehaviour
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
-    // Animator/network
-    //private PlayerAnimatorSync animatorSync;
+    private PlayerAnimatorSync animatorSync;
     private NetworkObject netObj;
     
     
@@ -65,7 +64,7 @@ public class FirstPersonController : MonoBehaviour
         //animatorSync = GetComponent<PlayerAnimatorSync>();
         //if (animatorSync == null)
         //    animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
-
+//
         // Get components
         controller = GetComponent<CharacterController>();
         
@@ -253,7 +252,7 @@ public class FirstPersonController : MonoBehaviour
         if (!useAnimations || animator == null) return;
         
         // Solo el jugador local actualiza animaciones
-        //if (!netObj.IsOwner) return;
+        if (!netObj.IsOwner) return;
 
         // Magnitud del movimiento (para el parámetro Speed)
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
