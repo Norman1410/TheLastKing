@@ -11153,10 +11153,11 @@ MonoBehaviour:
   - {fileID: 517147652}
   - {fileID: 1817672133}
   powerUpPrefabs:
-  - {fileID: 7813452240099425719, guid: 500f8ba28551a464fa09750b31f142e3, type: 3}
-  - {fileID: 2396345212421987751, guid: 3f0202cc031f8b24ba5c084e8ea8eeaf, type: 3}
-  - {fileID: 3524565760851017240, guid: 191dccb211a3e504fa038ecb80b2a234, type: 3}
-  - {fileID: 6322971991296647575, guid: 912b1558960138c44a5d11d3719aa3e9, type: 3}
+  - {fileID: 823868531863546545, guid: 4d9d89192ccbd4a418b6747e31d5c351, type: 3}
+  - {fileID: 2961992911540661266, guid: d2eeef5244c023444971c1214671dd6b, type: 3}
+  - {fileID: 5442309375222878638, guid: 7f490f0aaf28f7545a627fdc9ba3cbda, type: 3}
+  - {fileID: 2992461036239336102, guid: b7af5a74b254a7c42bfdef25fb016486, type: 3}
+  - {fileID: 8547863810078993965, guid: aa1f77701b0221d43aa0f9f7157d1bc1, type: 3}
   respawnTime: 7
 --- !u!1001 &1421182090
 PrefabInstance:

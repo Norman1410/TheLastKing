@@ -412,20 +412,20 @@ MonoBehaviour:
   powersHUD: {fileID: 3272593967697959964}
   useKey: 114
   prefabIconMappings:
-  - prefab: {fileID: 3524565760851017240, guid: 191dccb211a3e504fa038ecb80b2a234, type: 3}
-    icon: {fileID: -933971140, guid: f5eaa56f49bcf36459557cb603fcc365, type: 3}
+  - prefab: {fileID: 823868531863546545, guid: 4d9d89192ccbd4a418b6747e31d5c351, type: 3}
+    icon: {fileID: -1175506728, guid: db4708777f7050649950a3be1398801d, type: 3}
     powerType: 3
-  - prefab: {fileID: 2396345212421987751, guid: 3f0202cc031f8b24ba5c084e8ea8eeaf, type: 3}
-    icon: {fileID: -1659836709, guid: b13309fd31dc4b5439ff002a9cb8d449, type: 3}
+  - prefab: {fileID: 2961992911540661266, guid: d2eeef5244c023444971c1214671dd6b, type: 3}
+    icon: {fileID: -334443473, guid: e7c55598a7fae11439ab08c1723b4d87, type: 3}
     powerType: 2
-  - prefab: {fileID: 997691891977089800, guid: 11f1820be2ba2cd47907e324b526f02f, type: 3}
-    icon: {fileID: 983677381, guid: c8dadb0a32489274ba3c340777dbed48, type: 3}
+  - prefab: {fileID: 2992461036239336102, guid: b7af5a74b254a7c42bfdef25fb016486, type: 3}
+    icon: {fileID: -827531779, guid: 21a848eb769a8d04998a455fa0ec0b10, type: 3}
     powerType: 1
-  - prefab: {fileID: 7813452240099425719, guid: 500f8ba28551a464fa09750b31f142e3, type: 3}
-    icon: {fileID: -334708359, guid: 55cd7743eab30a74aa139980d76fde79, type: 3}
+  - prefab: {fileID: 8547863810078993965, guid: aa1f77701b0221d43aa0f9f7157d1bc1, type: 3}
+    icon: {fileID: 1199458264, guid: 8baf4d4d3ea89c34894f31a3fc23ed5b, type: 3}
     powerType: 0
-  - prefab: {fileID: 6322971991296647575, guid: 912b1558960138c44a5d11d3719aa3e9, type: 3}
-    icon: {fileID: -702678119, guid: 074e338c1f7baf844bb1a4f4b1b798b6, type: 3}
+  - prefab: {fileID: 5442309375222878638, guid: 7f490f0aaf28f7545a627fdc9ba3cbda, type: 3}
+    icon: {fileID: -1237344859, guid: 872d3fc5d72df954e92c2e50f0e7cbe7, type: 3}
     powerType: 4
   powerCooldownDuration: 1
 --- !u!1 &1291859470161747551
