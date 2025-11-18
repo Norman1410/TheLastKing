@@ -10,7 +10,8 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] public float walkSpeed = 5f;
     [SerializeField] public float runSpeed = 8f;
     [SerializeField] public float jumpHeight = 2f;
-    [SerializeField] private float gravity = -9.81f;
+    [SerializeField] public float gravity = -9.81f;
+    [SerializeField] public float gravityMultiplier = 1.0f;
     
     [Header("Mouse Look Settings")]
     [SerializeField] private float mouseSensitivity = 2f; // Reducido para mejor control
@@ -195,29 +196,27 @@ public class FirstPersonController : MonoBehaviour
     }
     
     private void HandleMovement()
+{
+    if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
+        return;
+
+    float currentSpeed = isRunning ? runSpeed : walkSpeed;
+    Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
+
+    // APLICACIÓN DE GRAVEDAD Y MOVIMIENTO LATERAL
+    velocity.y += (gravity * gravityMultiplier) * Time.deltaTime; 
+    
+    if (isGrounded && velocity.y < 0)
     {
-        if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
-            return;
-
-        float currentSpeed = isRunning ? runSpeed : walkSpeed;
-        Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-
-        //Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
-
-        isMoving = moveInput.magnitude > 0.1f;
-
-        if (!isGrounded){
-            velocity.y += gravity * Time.deltaTime;
-        }else if (velocity.y < 0){
-            velocity.y = -2f;
-        }
-
-
-        Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
-        controller.Move(finalMovement * Time.deltaTime);
-
-        //Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
+        velocity.y = -2f; 
     }
+    
+    isMoving = moveInput.magnitude > 0.1f;
+
+    Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
+    controller.Move(finalMovement * Time.deltaTime);
+
+}
 
     
     private void HandleMouseLook()
