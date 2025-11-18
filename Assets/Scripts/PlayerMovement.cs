@@ -34,8 +34,9 @@ public class FirstPersonController : MonoBehaviour
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
+    // Animator/network
     //private PlayerAnimatorSync animatorSync;
-    //private NetworkObject netObj;
+    private NetworkObject netObj;
     
     
     // Movement variables
@@ -57,13 +58,22 @@ public class FirstPersonController : MonoBehaviour
         controller = GetComponent<CharacterController>();
 
         // Asegurar referencia al NetworkObject
-        //if (netObj == null)
-        //    netObj = GetComponent<NetworkObject>();
-//
-        //// Obtener animatorSync si existe
-        //animatorSync = GetComponent<PlayerAnimatorSync>();
-        //if (animatorSync == null)
-        //    animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
+        if (netObj == null)
+            netObj = GetComponent<NetworkObject>();
+
+        // Si estamos usando Netcode y hay un Animator, añadir NetworkAnimator para sincronizar parámetros
+        if (netObj != null && animator != null)
+        {
+            var netAnim = GetComponent<Unity.Netcode.Components.NetworkAnimator>();
+            if (netAnim == null)
+                netAnim = gameObject.AddComponent<Unity.Netcode.Components.NetworkAnimator>();
+
+            // Ensure the NetworkAnimator points to the correct Animator (useful if Animator is on a child)
+            if (netAnim != null && netAnim.Animator == null)
+            {
+                netAnim.Animator = animator;
+            }
+        }
 
         // Get components
         controller = GetComponent<CharacterController>();
@@ -90,21 +100,20 @@ public class FirstPersonController : MonoBehaviour
         
         // Inicializar la rotación Y con la rotación actual del jugador
         yRotation = transform.eulerAngles.y;
+
+        // Ajustar visibilidad del modelo para el propietario local
+        UpdateLocalModelVisibility();
     }
     
     private void OnEnable()
     {
         Debug.LogWarning("[FirstPersonController]: Corriendo OnEnable");
-        //if (netObj == null){
-        //    Debug.LogWarning("[FirstPersonController]: Obteniendo NetworkObject en OnEnable");
-        //    netObj = GetComponent<NetworkObject>();
-        //}
-
-        //if (netObj != null && !netObj.IsOwner)
-        //{
-        //    // don't enable input actions for remote instances
-        //    return;
-        //}
+        // If this object is networked and this instance is NOT the owner, don't enable input or subscribe
+        if (netObj != null && !netObj.IsOwner)
+        {
+            Debug.Log("[FirstPersonController]: Remote instance - input disabled");
+            return;
+        }
 
         inputActions.Enable();
 
@@ -126,7 +135,8 @@ public class FirstPersonController : MonoBehaviour
     
     private void OnDisable()
     {
-        //if (netObj != null && !netObj.IsOwner) return;
+        // If this object is networked and this instance is NOT the owner, nothing to unsubscribe
+        if (netObj != null && !netObj.IsOwner) return;
 
         Debug.LogWarning("[FirstPersonController]: Unsubscribing from input events");
         
@@ -247,9 +257,10 @@ public class FirstPersonController : MonoBehaviour
     private void UpdateAnimations()
     {
         if (!useAnimations || animator == null) return;
-        
-        // Solo el jugador local actualiza animaciones
-        //if (!netObj.IsOwner) return;
+
+        // Only the owner should control & set animator parameters. Remote instances will be driven
+        // by NetworkAnimator (if present) or by networked RPCs.
+        if (netObj != null && !netObj.IsOwner) return;
 
         // Magnitud del movimiento (para el parámetro Speed)
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
@@ -408,5 +419,34 @@ public class FirstPersonController : MonoBehaviour
         }
 
         walkSpeed = newSpeed;
+    }
+
+    /// <summary>
+    /// Hides the local player's visible model meshes so the owner doesn't see their own body in first-person.
+    /// This disables Renderer components on child objects, but leaves camera children untouched.
+    /// </summary>
+    private void UpdateLocalModelVisibility()
+    {
+        if (netObj == null) return;
+
+        bool hide = netObj.IsOwner;
+
+        // Disable renderers for the local owner to avoid clipping into the camera
+        var renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (var r in renderers)
+        {
+            // Skip renderers that are part of the player camera hierarchy
+            if (playerCamera != null && r.transform.IsChildOf(playerCamera.transform))
+                continue;
+
+            // (skip CanvasRenderers separately below)
+
+            r.enabled = !hide;
+        }
+
+        // Additionally, toggle CanvasRenderer gameObjects if present (rare on model hierarchy)
+        var canvasRenderers = GetComponentsInChildren<CanvasRenderer>(true);
+        foreach (var cr in canvasRenderers)
+            cr.gameObject.SetActive(!hide);
     }
 }

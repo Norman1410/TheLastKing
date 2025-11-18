@@ -16,7 +16,17 @@ public class CrosshairUI : MonoBehaviour
         if (crosshairImage == null)
             crosshairImage = GetComponent<Image>();
         
-        // Centrar el crosshair
+        // Ensure the image is enabled and warn if no sprite is set (helps debug why it's invisible)
+        if (crosshairImage != null)
+        {
+            crosshairImage.enabled = true;
+            if (crosshairImage.sprite == null)
+                Debug.LogWarning("Crosshair Image has no sprite assigned. Assign a sprite to see it in-game.", this);
+            else if (crosshairImage.color.a <= 0f)
+                crosshairImage.color = new Color(crosshairImage.color.r, crosshairImage.color.g, crosshairImage.color.b, 1f);
+        }
+        
+        // Center the crosshair
         if (crosshairRect != null)
         {
             crosshairRect.anchorMin = new Vector2(0.5f, 0.5f);
