@@ -28,11 +28,13 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
 
-    [SerializeField] private NetworkObject netObj;
+    
     
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
+    private PlayerAnimatorSync animatorSync;
+    private NetworkObject netObj;
     
     
     // Movement variables
@@ -51,9 +53,19 @@ public class FirstPersonController : MonoBehaviour
     
     private void Awake()
     {
+        controller = GetComponent<CharacterController>();
+
+        // Asegurar referencia al NetworkObject
+        if (netObj == null)
+            netObj = GetComponent<NetworkObject>();
+
+        // Obtener animatorSync si existe
+        animatorSync = GetComponent<PlayerAnimatorSync>();
+        if (animatorSync == null)
+            animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
+
         // Get components
         controller = GetComponent<CharacterController>();
-        //netObj = GetComponent<NetworkObject>();
         
         // Si no se asignó un animator, intentar encontrarlo
         if (animator == null)
@@ -81,24 +93,35 @@ public class FirstPersonController : MonoBehaviour
     
     private void OnEnable()
     {
-        // Enable input actions
+        if (netObj == null)
+            netObj = GetComponent<NetworkObject>();
+
+        if (netObj != null && !netObj.IsOwner)
+        {
+            // don't enable input actions for remote instances
+            return;
+        }
+
         inputActions.Enable();
-        
-        // Subscribe to input events
+
+        // Subscribe...
         inputActions.Player.Move.performed += OnMove;
         inputActions.Player.Move.canceled += OnMove;
-        
+
         inputActions.Player.Look.performed += OnLook;
         inputActions.Player.Look.canceled += OnLook;
-        
+
         inputActions.Player.Jump.performed += OnJump;
-        
+
         inputActions.Player.Sprint.performed += OnSprint;
         inputActions.Player.Sprint.canceled += OnSprint;
     }
+
     
     private void OnDisable()
     {
+        if (netObj != null && !netObj.IsOwner) return;
+        
         // Unsubscribe from input events
         inputActions.Player.Move.performed -= OnMove;
         inputActions.Player.Move.canceled -= OnMove;
@@ -237,11 +260,21 @@ public class FirstPersonController : MonoBehaviour
         animator.SetBool("IsRunning", isRunning);
         animator.SetBool("IsGrounded", isGrounded);
 
+        if (animatorSync != null && netObj != null && netObj.IsOwner)
+        {
+            float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
+            animatorSync.OwnerSetSpeed(speedToSend);
+            animatorSync.OwnerSetDirection(direction);
+            animatorSync.OwnerSetRunning(isRunning);
+            animatorSync.OwnerSetJumping(isJumping);
+            animatorSync.OwnerSetGrounded(isGrounded);
+        }
+
 
         //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
-        Debug.Log($"Animator Parameters -->");
-        if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
-        if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
+        //Debug.Log($"Animator Parameters -->");
+        //if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
+        //if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
         //Debug.Log($" - IsJumping: {animator.GetBool("IsJumping")}");
         //Debug.Log($" - IsRunning: {animator.GetBool("IsRunning")}");
         //Debug.Log($" - IsGrounded: {animator.GetBool("IsGrounded")}");
