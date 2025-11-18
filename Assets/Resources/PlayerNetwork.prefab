@@ -2601,7 +2601,6 @@ GameObject:
   - component: {fileID: 2209032535361837422}
   - component: {fileID: 5806351486050689295}
   - component: {fileID: 3102064910088961984}
-  - component: {fileID: 7598782135747373261}
   - component: {fileID: 2270213130733425553}
   - component: {fileID: 6656697848171417622}
   - component: {fileID: 4288848699264655184}
@@ -2682,8 +2681,8 @@ MonoBehaviour:
   SceneMigrationSynchronization: 0
   SpawnWithObservers: 1
   DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
-  SyncOwnerTransformWhenParented: 1
+  AutoObjectParentSync: 0
+  SyncOwnerTransformWhenParented: 0
   AllowOwnerToParent: 0
 --- !u!136 &5806351486050689295
 CapsuleCollider:
@@ -2730,19 +2729,6 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   canRobColor: {r: 1, g: 0, b: 0, a: 1}
   playerCamera: {fileID: 2692074369058656737}
---- !u!114 &7598782135747373261
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6996942344717257674}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c21e7147d4c69cd40903f4be942d5208, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!114 &2270213130733425553
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2750,7 +2736,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6996942344717257674}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: da8033bd6ee4c3e4a81007c99e588a54, type: 3}
   m_Name: 
