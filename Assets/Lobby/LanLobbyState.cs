@@ -932,6 +932,8 @@ public class LanLobbyState : NetworkBehaviour
                 yield break;
             }
 
+
+
             // Attempt spawn
             try
             {
