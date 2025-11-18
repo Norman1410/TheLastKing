@@ -315,15 +315,15 @@ public class FirstPersonController : MonoBehaviour
         Cursor.visible = !locked;
     }
 
-    void OnGUI()
-    {
-        // ESQUINA INFERIOR IZQUIERDA
-        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
-
-        GUILayout.Label($"isWalking: {isMoving}");
-        
-        GUILayout.EndArea();
-    }
+    //void OnGUI()
+    //{
+    //    // ESQUINA INFERIOR IZQUIERDA
+    //    GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
+//
+    //    GUILayout.Label($"isWalking: {isMoving}");
+    //    
+    //    GUILayout.EndArea();
+    //}
     
     // Métodos públicos para obtener el estado (útiles para otros scripts)
     public bool IsGrounded() => isGrounded;
