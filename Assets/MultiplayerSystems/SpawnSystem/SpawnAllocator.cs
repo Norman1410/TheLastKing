@@ -26,6 +26,11 @@ public class SpawnAllocator : NetworkBehaviour
 
         // Por si este mismo GO vive entre escenas (DontDestroyOnLoad)
         SceneManager.sceneLoaded += OnSceneLoaded;
+        _spawns = FindAnyObjectByType<NetworkSpawnPoints>();
+        if (_spawns == null)
+            Debug.LogError("SpawnAllocator: No hay un NetworkSpawnPoints en la escena.");
+        else
+            Debug.Log($"[SpawnAllocator] Encontrado NetworkSpawnPoints con {_spawns.Count} puntos.");
     }
 
     private void OnDestroy()
@@ -80,15 +85,12 @@ public class SpawnAllocator : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         if (!IsServer) return;
-
         Debug.Log("[SpawnAllocator] OnNetworkDespawn en SERVER, removiendo callbacks.");
         NetworkManager.OnClientConnectedCallback -= OnClientConnected;
         NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
-    // =========================
-    //  Callbacks de clientes
-    // =========================
+
     private void OnClientConnected(ulong clientId)
     {
         Debug.Log($"[SpawnAllocator] OnClientConnected para {clientId}");
