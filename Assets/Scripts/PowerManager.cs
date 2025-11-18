@@ -23,6 +23,11 @@ public class PowerManager : MonoBehaviour
 
     [Header("Prefab -> Icon mappings (required)")]
     public PrefabIconMapping[] prefabIconMappings; // explicit mappings (prefab->icon + powerType)
+
+    [Header("Cooldown Management")]
+    public float powerCooldownDuration = 1f; // Cooldown global para evitar spam de R.
+    private float nextPowerUseTime = 0f;     // Tiempo en el que se puede volver a usar un poder.
+    private bool isPowerEffectActive = false; // Bandera para saber si un efecto de poder está en curso.
     
     private bool[] powerSlots = new bool[2]; // Array to track which slots are occupied
     // Simple dedupe: remember recently picked prefab instance IDs to avoid double-processing
@@ -110,10 +115,9 @@ public class PowerManager : MonoBehaviour
                     if (powerType == null)
                     {
                         if (pickedPrefab.GetComponent<Invisibility>() != null) powerType = PowerType.Invisibility;
-                        else if (pickedPrefab.GetComponent<MegaSize>() != null) powerType = PowerType.MegaSize;
+                        else if (pickedPrefab.GetComponent<Dwarf>() != null) powerType = PowerType.Dwarf;
                         else if (pickedPrefab.GetComponent<SuperJump>() != null) powerType = PowerType.JumpHigh;
                         else if (pickedPrefab.GetComponent<TurboSprint>() != null) powerType = PowerType.Boost;
-                        else if (pickedPrefab.GetComponent<Shield>() != null) powerType = PowerType.Shield;
                     }
                 }
 
@@ -192,16 +196,38 @@ public class PowerManager : MonoBehaviour
     }
     
     // Method to use power from slot 1 (with R key)
+    // Método para usar poder desde el slot 1 (con tecla R)
     public void UsePower()
     {
+        // 1. Verificar si ya se está usando un poder (duración del efecto)
+        if (isPowerEffectActive)
+        {
+            Debug.Log("No puedes usar otro poder hasta que el efecto actual termine.");
+            return; 
+        }
+        
+        // 2. Verificar el cooldown global
+        if (Time.time < nextPowerUseTime)
+        {
+            Debug.Log($"Poder en cooldown. Espera {(nextPowerUseTime - Time.time):F1} segundos.");
+            return; 
+        }
+        
         // Check if there's any power in slot 1
         if (powerSlots[0]) // If slot 1 has a power
         {
             PowerType? type = powerTypeSlots[0];
             if (type.HasValue)
             {
+                // Establecer la bandera de efecto activo ANTES de iniciar la corrutina
+                isPowerEffectActive = true; 
+                
                 Debug.Log($"Using power {type.Value}");
+                // Inicia la corrutina y le pasamos el tiempo de duración
                 StartCoroutine(HandlePowerEffect(type.Value));
+                
+                // Establecer el cooldown global (se puede ajustar en el Inspector)
+                nextPowerUseTime = Time.time + powerCooldownDuration;
             }
 
             // Shift powers: Slot 2 → Slot 1
@@ -220,55 +246,81 @@ public class PowerManager : MonoBehaviour
         if (player == null)
         {
             Debug.LogWarning("No player found to apply power effect.");
+            isPowerEffectActive = false; // Restablece en caso de error
             yield break;
         }
 
+        // El tiempo de duración del efecto es el que queremos esperar antes de poder usar el siguiente.
+        float duration = 0f;
+        
         switch (type)
         {
             case PowerType.Boost:
-                // Temporary speed boost on PlayerMovement if present
-                var pm = player.GetComponent<PlayerMovement>();
+                duration = 5f;
+                var pm = player.GetComponent<FirstPersonController>(); 
                 if (pm != null)
                 {
-                    float original = pm.speed;
-                    pm.speed *= 2f;
-                    yield return new WaitForSeconds(5f);
-                    pm.speed = original;
+                    
+                    float originalWalkSpeed = pm.walkSpeed;
+                    float originalRunSpeed = pm.runSpeed;
+                    
+                    // Aumentar la velocidad
+                    pm.walkSpeed *= 3f;
+                    pm.runSpeed *= 3f; 
+                    
+                    yield return new WaitForSeconds(duration);
+                    
+                    // Revertir
+                    pm.walkSpeed = originalWalkSpeed;
+                    pm.runSpeed = originalRunSpeed;
                 }
                 break;
+                
             case PowerType.JumpHigh:
-                var pc = player.GetComponent<PlayerMovement>();
+                duration = 5f;
+                var pc = player.GetComponent<FirstPersonController>();
                 if (pc != null)
                 {
                     float origJ = pc.jumpHeight;
-                    pc.jumpHeight *= 2.5f;
-                    yield return new WaitForSeconds(5f);
+                    pc.jumpHeight *= 4f;
+                    
+                    yield return new WaitForSeconds(duration);
                     pc.jumpHeight = origJ;
                 }
                 break;
-            case PowerType.Shield:
-                // Implement a basic visual shield if player has a Shield component or create a simple invulnerability flag
-                var shield = player.GetComponent<Shield>();
-                if (shield != null)
-                {
-                    // If Shield component had logic, call it; otherwise, just wait as placeholder
-                }
-                yield return new WaitForSeconds(5f);
-                break;
             case PowerType.Invisibility:
+                duration = 6f; // Duración de la Invisibilidad
                 // Hide renderers
                 var rends = player.GetComponentsInChildren<Renderer>();
                 foreach (var r in rends) r.enabled = false;
-                yield return new WaitForSeconds(6f);
+                yield return new WaitForSeconds(duration);
                 foreach (var r in rends) r.enabled = true;
                 break;
-            case PowerType.MegaSize:
+            case PowerType.Dwarf:
+                duration = 6f; // Duración del Tamaño Peque
                 Vector3 origScale = player.transform.localScale;
-                player.transform.localScale = origScale * 2.5f;
-                yield return new WaitForSeconds(6f);
+                player.transform.localScale = origScale * 0.3f;
+                yield return new WaitForSeconds(duration);
                 player.transform.localScale = origScale;
                 break;
+            case PowerType.Levitate:
+                duration = 6f; 
+                var pmLevitate = player.GetComponent<FirstPersonController>();
+                if (pmLevitate != null)
+                {
+                    float originalGravityMultiplier = pmLevitate.gravityMultiplier;
+                    pmLevitate.gravityMultiplier = 0.1f; 
+                    yield return new WaitForSeconds(duration);
+                    pmLevitate.gravityMultiplier = originalGravityMultiplier;
+                }
+                break;
         }
+
+        // ESTO ES LO CRUCIAL: Reinicia la bandera isPowerEffectActive
+        // Esto significa que el jugador puede usar su siguiente poder
+        // una vez que el efecto del poder anterior ha terminado completamente.
+        isPowerEffectActive = false;
+        Debug.Log($"Efecto de {type} terminado. El siguiente poder puede ser usado.");
 
         yield break;
     }
@@ -319,10 +371,8 @@ public class PowerManager : MonoBehaviour
 public enum PowerType
 {
     Boost,
-    Shield,
     JumpHigh,
     Invisibility,
-    MegaSize
+    Dwarf,
+    Levitate
 }
-
-// PlayerPowerCollector moved to its own file (Assets/Scripts/PlayerPowerCollector.cs)
