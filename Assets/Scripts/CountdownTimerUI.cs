@@ -31,6 +31,8 @@ public class CountdownTimerUI : MonoBehaviour
     float remaining = 0f;
     int lastDisplayed = -1;
 
+    
+
     void Awake()
     {
         // Try to auto-load sprites from Resources if not assigned

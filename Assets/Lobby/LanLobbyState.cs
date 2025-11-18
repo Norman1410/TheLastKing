@@ -416,10 +416,12 @@ public class LanLobbyState : NetworkBehaviour
         yield return new WaitForSeconds(1.5f);
 
         if (!IsServer) yield break;
-        // Wait until all connected clients have PlayerObjects spawned (or timeout)
-        const int spawnChecks = 20; // checks
-        const float spawnDelay = 0.5f; // seconds between checks (total ~10s)
+
+        // Wait until all players are spawned (max 10s)
+        const int spawnChecks = 20;
+        const float spawnDelay = 0.5f;
         bool allSpawned = false;
+
         for (int check = 0; check < spawnChecks; check++)
         {
             allSpawned = true;
@@ -437,41 +439,46 @@ public class LanLobbyState : NetworkBehaviour
                     }
                 }
             }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[LanLobbyState] Exception while checking spawn status: {ex}");
-                allSpawned = false;
-            }
+            catch { allSpawned = false; }
 
             if (allSpawned) break;
-            Debug.Log($"[LanLobbyState] Waiting for all PlayerObjects to be spawned... attempt {check + 1}/{spawnChecks}");
             yield return new WaitForSeconds(spawnDelay);
         }
 
-        if (!allSpawned)
-        {
-            Debug.LogWarning("[LanLobbyState] Not all PlayerObjects were spawned before timer start timeout. Proceeding anyway.");
-        }
-
-        // Determine timer duration (default 60s)
+        // Determine round duration
         int seconds = 60;
         var ts = UnityEngine.Object.FindAnyObjectByType<TheLastKing.TimerStarter>();
         if (ts != null) seconds = ts.roundDuration;
-        else
-        {
-            var ct = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
-            if (ct != null) seconds = ct.durationSeconds;
-        }
-        // store for next-round scheduling
         lastRoundDurationSeconds = seconds;
 
-        Debug.Log($"[LanLobbyState] Starting timer for {seconds} seconds on server");
+        Debug.Log($"[LanLobbyState] All players spawned → PRE-ROUND countdown begins ({seconds}s round)");
 
-        // Update NetworkVariables so late-joining clients will see the timer state
+        // ============================================================
+        // ⭐ NEW: START PRE-ROUND COUNTDOWN BEFORE THE REAL ROUND ⭐
+        // ============================================================
+        var rcs = UnityEngine.Object.FindAnyObjectByType<RoundCountdownStarter>();
+        if (rcs != null)
+        {
+            Debug.Log("[LanLobbyState] Triggering RoundCountdownStarter (3-2-1 GO!)");
+            
+            // Disable automatic UI timer until countdown finishes
+            TimerActive.Value = false;
+            TimerDuration.Value = 0;
+
+            // THIS IS WHAT TRIGGERS YOUR UI
+            rcs.StartPreRoundCountdown();
+            
+            // IMPORTANT: Stop this coroutine so it DOES NOT start TimerStarter early
+            yield break;
+        }
+
+        // ============================================================
+        // ⭐ FALLBACK (in case countdown does not exist)
+        // ============================================================
+        // Start timer normally
         TimerDuration.Value = seconds;
         TimerActive.Value = true;
 
-        // Start server's local timer using EnsureAndStart for sprite UI
         var ctHost = UnityEngine.Object.FindAnyObjectByType<CountdownTimerUI>();
         if (ctHost != null)
         {
@@ -480,77 +487,38 @@ public class LanLobbyState : NetworkBehaviour
                 ctHost.EnsureAndStart(seconds);
                 Debug.Log("[LanLobbyState] Server timer UI started with sprites");
             }
-            catch (System.Exception e)
+            catch
             {
-                Debug.LogWarning("[LanLobbyState] ctHost.EnsureAndStart failed: " + e);
                 ctHost.gameObject.SetActive(true);
                 ctHost.StartTimer(seconds);
             }
         }
         else if (ts != null)
         {
+            Debug.Log("[LanLobbyState] No CountdownTimerUI → calling StartRound()");
             ts.StartRound();
         }
-        else
-        {
-            Debug.LogWarning("[LanLobbyState] No CountdownTimerUI or TimerStarter found on server - creating runtime TimerUI");
-            try
-            {
-                var created = CountdownTimerUI.CreateRuntimeTimerUI();
-                if (created != null)
-                {
-                    created.EnsureAndStart(seconds);
-                    Debug.Log("[LanLobbyState] Created runtime TimerUI and started timer on server.");
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning("[LanLobbyState] Failed to create runtime TimerUI: " + e);
-            }
-        }
 
-        // Broadcast to clients via TimerNetworkMessaging (with detailed logs)
+        // Broadcast to clients
         try
         {
             var tType = System.Type.GetType("TheLastKing.TimerNetworkMessaging, Assembly-CSharp");
             if (tType != null)
             {
-                // Use BroadcastStart which now logs each client individually
-                var mi = tType.GetMethod("BroadcastStart", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var mi = tType.GetMethod("BroadcastStart", 
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
                 if (mi != null)
                 {
                     mi.Invoke(null, new object[] { seconds });
-                    Debug.Log($"[LanLobbyState] BroadcastStart invoked for {seconds}s");
-                }
-                else
-                {
-                    Debug.LogWarning("[LanLobbyState] BroadcastStart method not found");
                 }
             }
-            else
-            {
-                Debug.LogWarning("[LanLobbyState] TimerNetworkMessaging type not found");
-            }
         }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning("[LanLobbyState] BroadcastStart failed: " + e);
-        }
+        catch { }
 
-        // Start a server-side authoritative timer that will handle round end (despawn non-crowned players)
-        try
-        {
-            if (IsServer)
-            {
-                Debug.Log($"[LanLobbyState] Starting server-side round timer for {seconds}s");
-                StartCoroutine(RunServerRoundTimer(seconds));
-            }
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning("[LanLobbyState] Failed to start server-side round timer: " + e);
-        }
+        // Server authoritative timer
+        StartCoroutine(RunServerRoundTimer(seconds));
     }
+
 
     System.Collections.IEnumerator RunServerRoundTimer(int seconds)
     {
@@ -610,7 +578,7 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        // Despawn non-winners' PlayerObjects but keep them connected and mark them eliminated
+        // ======== CAMBIO CLAVE: convertir perdedores en ESPECTADORES (sin despawn) ========
         foreach (var clientId in nm.ConnectedClientsIds)
         {
             if (winners.Contains(clientId))
@@ -623,35 +591,32 @@ public class LanLobbyState : NetworkBehaviour
             {
                 try
                 {
-                    Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
+                    Debug.Log($"[LanLobbyState] Client {clientId} lost this round -> switching to spectator (no despawn).");
 
-                    // Notify the client that they are eliminated (will run only on that client)
-                    try
-                    {
-                        var clientRpcParams = new ClientRpcParams
-                        {
-                            Send = new ClientRpcSendParams
-                            {
-                                TargetClientIds = new ulong[] { clientId }
-                            }
-                        };
-                        NotifyEliminatedClientRpc(clientRpcParams);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
-                    }
-
-                    // Despawn and mark eliminated so they won't be included in next rounds
-                    po.Despawn(destroy: true);
+                    // Marcar eliminado para no volver a spawnear como jugador en próximas rondas
                     eliminatedClients.Add(clientId);
+
+                    // Transición server-authoritative al modo espectador en el Player (requiere método en PlayerRob)
+                    var pr = po.GetComponent<PlayerRob>();
+                    if (pr != null)
+                    {
+                        pr.EnterSpectatorServer(); // cambia layer, desactiva gameplay, TP arriba y habilita cámara libre en su cliente
+                    }
+
+                    // Notificar al cliente para ocultar HUDs (crown/powers) — se mantiene tu RPC existente
+                    var clientRpcParams = new ClientRpcParams
+                    {
+                        Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } }
+                    };
+                    NotifyEliminatedClientRpc(clientRpcParams);
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                    Debug.LogWarning($"[LanLobbyState] Failed to switch client {clientId} to spectator: {e}");
                 }
             }
         }
+        // ======== FIN CAMBIO ========
 
         // Update network variables so clients know the timer stopped
         TimerActive.Value = false;
@@ -696,12 +661,15 @@ public class LanLobbyState : NetworkBehaviour
 
     System.Collections.IEnumerator StartNextRoundCoroutine(List<PlayerRob> players)
     {
-        // Short intermission
+        // Intermission between rounds
         yield return new WaitForSeconds(3f);
 
         if (!IsServer)
             yield break;
 
+        Debug.Log("[LanLobbyState] Preparing NEXT ROUND with survivors...");
+
+        // Assign crowns for the new round
         var cgm = UnityEngine.Object.FindAnyObjectByType<CrownGameManager>();
         if (cgm == null)
         {
@@ -709,14 +677,38 @@ public class LanLobbyState : NetworkBehaviour
             yield break;
         }
 
-        // Assign crowns among the survivors
         cgm.AssignCrownsToPlayers(players);
 
-        // Set timer network vars and start server-side timer
+        // ---------------------------------------------
+        // ⭐ PRE-ROUND COUNTDOWN FOR NEXT ROUNDS ⭐
+        // ---------------------------------------------
+        var rcs = UnityEngine.Object.FindAnyObjectByType<RoundCountdownStarter>();
+        if (rcs != null)
+        {
+            Debug.Log("[LanLobbyState] NEXT ROUND → Starting PRE-ROUND COUNTDOWN");
+            
+            // Stop timer from starting early
+            TimerActive.Value = false;
+            TimerDuration.Value = 0;
+
+            // Start countdown (3-2-1-GO!)
+            rcs.StartPreRoundCountdown();
+
+            // IMPORTANT:
+            // Let RoundCountdownStarter call TimerStarter.StartRound()
+            // When countdown finishes.
+            yield break;
+        }
+
+        // ---------------------------------------------
+        // ⭐ FALLBACK: If countdown is missing, start normally
+        // ---------------------------------------------
+        Debug.Log("[LanLobbyState] CountdownStarter missing. Starting next round immediately.");
+
         TimerDuration.Value = lastRoundDurationSeconds;
         TimerActive.Value = true;
 
-        // Broadcast start to clients (use reflection for TimerNetworkMessaging.BroadcastStart)
+        // Broadcast to clients
         try
         {
             var tType = System.Type.GetType("TheLastKing.TimerNetworkMessaging, Assembly-CSharp");
@@ -741,6 +733,7 @@ public class LanLobbyState : NetworkBehaviour
         // Start server timer
         StartCoroutine(RunServerRoundTimer(lastRoundDurationSeconds));
     }
+
 
 
     [ClientRpc]
@@ -839,8 +832,7 @@ public class LanLobbyState : NetworkBehaviour
                     }
                 }
 
-                // Destroy local player object if present (server will despawn it too)
-                // But avoid double-destroy; the server will call despawn.
+                // OJO: Ya no destruimos aquí; el server no hace despawn del perdedor.
             }
         }
         catch (System.Exception e)

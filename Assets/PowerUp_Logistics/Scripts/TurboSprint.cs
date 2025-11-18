@@ -1,46 +1,21 @@
 using UnityEngine;
-using System.Collections;
 
 public class TurboSprint : PowerUp
 {
-    public float speedMultiplier = 3f;   // Qué tanto aumenta la velocidad
-    public float effectDuration = 6f;          // Cuánto dura el poder
-
-    private FirstPersonController playerController;
-    private bool isCollected = false;
-
     public override void Activate(GameObject player)
     {
-        playerController = player.GetComponent<FirstPersonController>();
+        // Intentamos aÃ±adir el poder al PowerManager.
+        bool added = PowerManager.Instance.AddPower(PowerType.Boost, this.gameObject);
 
-        if (playerController != null)
+        if (added)
         {
-            isCollected = true;
-            Debug.Log("TurboSprint recogido. Presiona R para activarlo.");
-            gameObject.SetActive(false);
-
-            // Le decimos al jugador que tiene este poder disponible
-            playerController.StartCoroutine(WaitForActivation());
+            // Si se aÃ±adiÃ³ con Ã©xito, destruimos el objeto de recogida.
+            Debug.Log("TurboSprint recogido. AÃ±adido al PowerManager.");
+            Destroy(gameObject);
         }
-    }
-
-    private IEnumerator WaitForActivation()
-    {
-        // Espera hasta que el jugador presione R
-        yield return new WaitUntil(() => Input.GetKeyDown(KeyCode.R));
-
-        Debug.Log("TurboSprint activado!");
-        float originalSpeed = playerController.walkSpeed;
-        playerController.walkSpeed *= speedMultiplier;
-
-        // Espera el tiempo de duración del poder
-        yield return new WaitForSeconds(effectDuration);
-
-        // Vuelve la velocidad a la normalidad
-        playerController.walkSpeed = originalSpeed;
-        Debug.Log("TurboSprint terminado.");
-
-        // Destruye el objeto del poder
-        Destroy(gameObject);
+        else
+        {
+            Debug.Log("Slots de poder llenos.");
+        }
     }
 }
