@@ -61,10 +61,10 @@ public class FirstPersonController : MonoBehaviour
             netObj = GetComponent<NetworkObject>();
 
         // Obtener animatorSync si existe
-        //animatorSync = GetComponent<PlayerAnimatorSync>();
-        //if (animatorSync == null)
-        //    animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
-//
+        animatorSync = GetComponent<PlayerAnimatorSync>();
+        if (animatorSync == null)
+            animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
+
         // Get components
         controller = GetComponent<CharacterController>();
         
@@ -269,15 +269,15 @@ public class FirstPersonController : MonoBehaviour
         animator.SetBool("IsRunning", isRunning);
         animator.SetBool("IsGrounded", isGrounded);
 
-        //if (animatorSync != null && netObj != null && netObj.IsOwner)
-        //{
-        //    float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
-        //    animatorSync.OwnerSetSpeed(speedToSend);
-        //    animatorSync.OwnerSetDirection(direction);
-        //    animatorSync.OwnerSetRunning(isRunning);
-        //    animatorSync.OwnerSetJumping(isJumping);
-        //    animatorSync.OwnerSetGrounded(isGrounded);
-        //}
+        if (animatorSync != null && netObj != null && netObj.IsOwner)
+        {
+            float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
+            animatorSync.OwnerSetSpeed(speedToSend);
+            animatorSync.OwnerSetDirection(direction);
+            animatorSync.OwnerSetRunning(isRunning);
+            animatorSync.OwnerSetJumping(isJumping);
+            animatorSync.OwnerSetGrounded(isGrounded);
+        }
 
 
         //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
