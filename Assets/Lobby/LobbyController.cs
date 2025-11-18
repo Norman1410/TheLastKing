@@ -754,7 +754,7 @@ public class LobbyController : MonoBehaviour
         if (relayStatusText != null)
             relayStatusText.text = $"Nombre guardado: {PlayerName.Get()}";
 
-        Debug.Log("[RelayUI] Nombre guardado para Relay: " + PlayerName.Get());
+        //Debug.Log("[RelayUI] Nombre guardado para Relay: " + PlayerName.Get());
     }
 
     // === Botón "Volver" desde los lobbies (LAN u ONLINE) ===
@@ -907,11 +907,11 @@ public class LobbyController : MonoBehaviour
     void UpdateRelayHudTexts()
     {
         // Log para depurar
-        Debug.Log(
-            $"[RelayHUD] UpdateRelayHudTexts() - Mode={Mode}, " +
-            $"lobby nulo={_lobby == null}, " +
-            $"panelHUD activo={panelRelayHUD != null && panelRelayHUD.activeSelf}"
-        );
+        //Debug.Log(
+        //    $"[RelayHUD] UpdateRelayHudTexts() - Mode={Mode}, " +
+        //    $"lobby nulo={_lobby == null}, " +
+        //    $"panelHUD activo={panelRelayHUD != null && panelRelayHUD.activeSelf}"
+        //);
 
         // 🔴 ANTES:
         // if (Mode != NetMode.Relay)
@@ -956,13 +956,13 @@ public class LobbyController : MonoBehaviour
                             readyStr = "Listo";
                     }
 
-                    Debug.Log($"[RelayHUD] Player en lobby → name={name}, ready={readyStr}");
+                    //Debug.Log($"[RelayHUD] Player en lobby → name={name}, ready={readyStr}");
                     sb.AppendLine($"- {name} ({readyStr})");
                 }
             }
 
             relayHudPlayersText.text = sb.ToString();
-            Debug.Log($"[RelayHUD] Texto pintado en HUD:\n{relayHudPlayersText.text}");
+            //Debug.Log($"[RelayHUD] Texto pintado en HUD:\n{relayHudPlayersText.text}");
         }
 
         // --- Botón INICIAR JUEGO (HOST) ---

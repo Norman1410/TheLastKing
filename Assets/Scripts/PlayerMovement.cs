@@ -93,16 +93,21 @@ public class FirstPersonController : MonoBehaviour
     
     private void OnEnable()
     {
-        if (netObj == null)
+        Debug.LogWarning("[FirstPersonController]: Corriendo OnEnable");
+        if (netObj == null){
+            Debug.LogWarning("[FirstPersonController]: Obteniendo NetworkObject en OnEnable");
             netObj = GetComponent<NetworkObject>();
-
-        if (netObj != null && !netObj.IsOwner)
-        {
-            // don't enable input actions for remote instances
-            return;
         }
 
+        //if (netObj != null && !netObj.IsOwner)
+        //{
+        //    // don't enable input actions for remote instances
+        //    return;
+        //}
+
         inputActions.Enable();
+
+        Debug.LogWarning("[FirstPersonController]: Subscribing to input events");
 
         // Subscribe...
         inputActions.Player.Move.performed += OnMove;
@@ -121,6 +126,8 @@ public class FirstPersonController : MonoBehaviour
     private void OnDisable()
     {
         if (netObj != null && !netObj.IsOwner) return;
+
+        Debug.LogWarning("[FirstPersonController]: Unsubscribing from input events");
         
         // Unsubscribe from input events
         inputActions.Player.Move.performed -= OnMove;

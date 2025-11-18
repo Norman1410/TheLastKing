@@ -38,8 +38,7 @@ public class PlayerAnimatorSync : NetworkBehaviour
 
     private void Awake()
     {
-        animator = GetComponentInChildren<Animator>();
-        if (animator == null) animator = GetComponent<Animator>();
+        animator = GetComponent<Animator>();
     }
 
     public override void OnNetworkSpawn()
