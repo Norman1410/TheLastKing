@@ -29,12 +29,10 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
 
-    [SerializeField] private NetworkObject netObj;
-    
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
-    
+    private NetworkObject netObj;
     
     // Movement variables
     private Vector2 moveInput;
