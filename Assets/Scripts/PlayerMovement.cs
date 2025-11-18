@@ -61,19 +61,10 @@ public class FirstPersonController : MonoBehaviour
         if (netObj == null)
             netObj = GetComponent<NetworkObject>();
 
-        // Si estamos usando Netcode y hay un Animator, añadir NetworkAnimator para sincronizar parámetros
-        if (netObj != null && animator != null)
-        {
-            var netAnim = GetComponent<Unity.Netcode.Components.NetworkAnimator>();
-            if (netAnim == null)
-                netAnim = gameObject.AddComponent<Unity.Netcode.Components.NetworkAnimator>();
-
-            // Ensure the NetworkAnimator points to the correct Animator (useful if Animator is on a child)
-            if (netAnim != null && netAnim.Animator == null)
-            {
-                netAnim.Animator = animator;
-            }
-        }
+        // Obtener animatorSync si existe
+        //animatorSync = GetComponent<PlayerAnimatorSync>();
+        //if (animatorSync == null)
+        //    animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
 
         // Get components
         controller = GetComponent<CharacterController>();
@@ -108,12 +99,16 @@ public class FirstPersonController : MonoBehaviour
     private void OnEnable()
     {
         Debug.LogWarning("[FirstPersonController]: Corriendo OnEnable");
-        // If this object is networked and this instance is NOT the owner, don't enable input or subscribe
-        if (netObj != null && !netObj.IsOwner)
-        {
-            Debug.Log("[FirstPersonController]: Remote instance - input disabled");
-            return;
+        if (netObj == null){
+            Debug.LogWarning("[FirstPersonController]: Obteniendo NetworkObject en OnEnable");
+            netObj = GetComponent<NetworkObject>();
         }
+
+        //if (netObj != null && !netObj.IsOwner)
+        //{
+        //    // don't enable input actions for remote instances
+        //    return;
+        //}
 
         inputActions.Enable();
 
@@ -135,7 +130,6 @@ public class FirstPersonController : MonoBehaviour
     
     private void OnDisable()
     {
-        // If this object is networked and this instance is NOT the owner, nothing to unsubscribe
         if (netObj != null && !netObj.IsOwner) return;
 
         Debug.LogWarning("[FirstPersonController]: Unsubscribing from input events");
@@ -257,10 +251,9 @@ public class FirstPersonController : MonoBehaviour
     private void UpdateAnimations()
     {
         if (!useAnimations || animator == null) return;
-
-        // Only the owner should control & set animator parameters. Remote instances will be driven
-        // by NetworkAnimator (if present) or by networked RPCs.
-        if (netObj != null && !netObj.IsOwner) return;
+        
+        // Solo el jugador local actualiza animaciones
+        //if (!netObj.IsOwner) return;
 
         // Magnitud del movimiento (para el parámetro Speed)
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
