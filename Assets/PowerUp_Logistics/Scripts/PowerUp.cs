@@ -3,14 +3,14 @@ using System;
 
 public class PowerUp : MonoBehaviour
 {
-    public Action onPicked;    // Evento que el manager usar�
+    public Action onPicked;    // Evento que el manager usara
     public float duration = 5f;
     // Guard to prevent the same powerup being picked multiple times (multiple colliders / frames)
     private bool isPicked = false;
 
     public virtual void Activate(GameObject player)
     {
-        // Aqu� se define qu� hace el power-up; cada hijo lo sobrescribir�
+        // Aqui se define que hace el power-up; cada hijo lo sobrescribe
         
     }
 
