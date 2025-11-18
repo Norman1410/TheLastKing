@@ -31,7 +31,29 @@ public class PlayerRob : NetworkBehaviour
     [Header("Crown Drop")]
     [SerializeField] private GameObject crownPickupPrefab;
 
-    
+
+    // ======== ESPECTADOR ========
+    [Header("Spectator")]
+    [Tooltip("Nombre del Layer que usarán los espectadores (configurar colisiones en Project Settings > Physics).")]
+    [SerializeField] private string spectatorLayerName = "Spectator";
+
+    [Tooltip("Componentes de gameplay a desactivar al entrar en modo espectador (movimiento, dash, ataque, etc.).")]
+    [SerializeField] private MonoBehaviour[] gameplayComponentsToDisable;
+
+    [Tooltip("Altura (metros) para elevar al jugador cuando pasa a espectador, antes de apoyar con raycast.")]
+    [SerializeField] private float spectatorRaiseMeters = 20f;
+
+    [Tooltip("Desde qué altura máxima intentamos encontrar suelo (raycast downward) para apoyar al espectador.")]
+    [SerializeField] private float spectatorRaycastDown = 200f;
+
+    private NetworkVariable<bool> isSpectator = new NetworkVariable<bool>(
+        false,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+    public bool IsSpectator => isSpectator.Value;
+    // ============================
+
     private PlayerRob targetPlayer;
     private InputAction robAction;
     private PlayerInput playerInput;
@@ -47,14 +69,18 @@ public class PlayerRob : NetworkBehaviour
         playerInput = GetComponent<PlayerInput>();
         if (playerInput != null)
         {
-            robAction = playerInput.actions["Rob"];
+            var actions = playerInput.actions;
+            if (actions != null)
+            {
+                robAction = actions.FindAction("Rob", throwIfNotFound: false);
+            }
             if (robAction != null)
             {
                 robAction.performed += OnRobPerformed;
             }
             else
             {
-                Debug.LogError($"[{gameObject.name}] Acción 'Rob' no encontrada en PlayerInput!");
+                Debug.LogWarning($"[{gameObject.name}] Acción 'Rob' no encontrada en PlayerInput (no es error fatal).");
             }
         }
     }
@@ -70,8 +96,7 @@ public class PlayerRob : NetworkBehaviour
     void OnRobPerformed(InputAction.CallbackContext context)
     {
         if (!IsOwner) return;
-        
-        Debug.Log($"[{gameObject.name}] Input ROB recibido! Target: {targetPlayer != null}");
+        if (IsSpectator) return; // en espectador no se roba
         
         if (targetPlayer != null && targetPlayer.HasCrown())
         {
@@ -82,9 +107,16 @@ public class PlayerRob : NetworkBehaviour
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
-        
         hasCrown.OnValueChanged += OnCrownChanged;
+        isSpectator.OnValueChanged += OnSpectatorChanged;
         UpdateCrownVisual(hasCrown.Value);
+
+        // Si el cliente entra y ya está en espectador (re-conexión o ronda en curso)
+        if (IsSpectator && IsOwner)
+        {
+            // Aseguramos estado local de espectador
+            TryEnableSpectatorLocal(true);
+        }
     }
 
     public override void OnNetworkDespawn()
@@ -92,27 +124,44 @@ public class PlayerRob : NetworkBehaviour
         base.OnNetworkDespawn();
         if (hasCrown != null)
             hasCrown.OnValueChanged -= OnCrownChanged;
+        isSpectator.OnValueChanged -= OnSpectatorChanged;
     }
 
     void OnCrownChanged(bool oldValue, bool newValue)
     {
-        UpdateCrownVisual(newValue);
-        Debug.Log($"[{gameObject.name}] Corona: {oldValue} -> {newValue}");
-        
-        // Disparar evento para que el HUD se actualice
+        // Si estamos en espectador, la corona NO se muestra aunque el NV cambie
+        UpdateCrownVisual(IsSpectator ? false : newValue);
         OnCrownStatusChanged?.Invoke(newValue);
+    }
+
+    void OnSpectatorChanged(bool wasSpectator, bool nowSpectator)
+    {
+        // Visualmente, espectador nunca muestra corona
+        UpdateCrownVisual(nowSpectator ? false : hasCrown.Value);
+
+        if (IsOwner)
+        {
+            TryEnableSpectatorLocal(nowSpectator);
+        }
     }
 
     void Update()
     {
         if (!IsOwner) return;
 
+        // Si soy espectador, NO hago lógicas de robo ni targeteo
+        if (IsSpectator)
+        {
+            if (crosshair != null) crosshair.color = normalColor;
+            targetPlayer = null;
+            return;
+        }
+
         // FALLBACK: Si no hay Input System, usar click izquierdo
         if (Input.GetMouseButtonDown(0)) // 0 = Click Izquierdo
         {
             if (targetPlayer != null && targetPlayer.HasCrown())
             {
-                Debug.Log($"[{gameObject.name}] Robo directo (fallback)");
                 RobCrown();
             }
         }
@@ -132,10 +181,11 @@ public class PlayerRob : NetworkBehaviour
     {
         if (playerCamera == null)
         {
-            Debug.LogWarning($"[{gameObject.name}] playerCamera es null!");
             return;
         }
-            
+        // En espectador no se apunta ni se roba
+        if (IsSpectator) return;
+
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         RaycastHit hit;
         
@@ -154,9 +204,7 @@ public class PlayerRob : NetworkBehaviour
                     if (crosshair != null)
                         crosshair.color = canRobColor;
                     
-                    // Debug visual
                     Debug.DrawRay(ray.origin, ray.direction * robDistance, Color.green);
-                    
                     return;
                 }
             }
@@ -166,22 +214,21 @@ public class PlayerRob : NetworkBehaviour
         if (crosshair != null)
             crosshair.color = normalColor;
         
-        // Debug visual cuando no hay objetivo
         Debug.DrawRay(ray.origin, ray.direction * robDistance, Color.yellow);
     }
 
     void RobCrown()
     {
+        if (IsSpectator) return; // espectador no roba
+
         if (targetPlayer == null)
         {
-            Debug.LogWarning($"[{gameObject.name}] targetPlayer es null!");
             return;
         }
         
         var targetNetObj = targetPlayer.GetComponent<NetworkObject>();
         if (targetNetObj != null && targetNetObj.IsSpawned)
         {
-            Debug.Log($"[{gameObject.name}] Enviando ServerRpc para robar...");
             RobCrownServerRpc(targetNetObj.NetworkObjectId);
         }
     }
@@ -190,17 +237,18 @@ public class PlayerRob : NetworkBehaviour
     void RobCrownServerRpc(ulong targetNetworkObjectId, ServerRpcParams rpcParams = default)
     {
         Debug.Log($"[Server] ServerRpc recibido de cliente {rpcParams.Receive.SenderClientId}");
+        // Este jugador (emisor) no puede ser espectador para robar
+        if (isSpectator.Value) return;
 
         if (NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(targetNetworkObjectId, out NetworkObject targetNetObj))
         {
-            var targetPlayer = targetNetObj.GetComponent<PlayerRob>();
-            if (targetPlayer != null && targetPlayer.hasCrown.Value)
+            var tpr = targetNetObj.GetComponent<PlayerRob>();
+            if (tpr != null && tpr.hasCrown.Value && !tpr.isSpectator.Value)
             {
                 // Verificar distancia server-side
-                float distance = Vector3.Distance(transform.position, targetPlayer.transform.position);
+                float distance = Vector3.Distance(transform.position, tpr.transform.position);
                 if (distance > robDistance + 1f)
                 {
-                    Debug.LogWarning($"[Server] Robo rechazado: distancia {distance:F2} > {robDistance}");
                     return;
                 }
 
@@ -209,14 +257,6 @@ public class PlayerRob : NetworkBehaviour
 
                 Debug.Log($"[Server] {gameObject.name} robó corona de {targetPlayer.gameObject.name}!");
             }
-            else
-            {
-                Debug.LogWarning($"[Server] Objetivo no tiene corona o es null");
-            }
-        }
-        else
-        {
-            Debug.LogWarning($"[Server] NetworkObject {targetNetworkObjectId} no encontrado");
         }
     }
     
@@ -308,11 +348,12 @@ public class PlayerRob : NetworkBehaviour
         }
         
         hasCrown.Value = value;
-        Debug.Log($"[Server] SetCrownDirect: {gameObject.name} corona = {value}");
     }
 
     public bool HasCrown()
     {
+        // Un espectador nunca “cuenta” como que tiene corona para el juego
+        if (IsSpectator) return false;
         return hasCrown.Value;
     }
 
@@ -335,19 +376,178 @@ public class PlayerRob : NetworkBehaviour
         }
     }
 
-    //void OnGUI()
-    //{
-    //    if (!IsOwner) return;
-//
-    //    GUILayout.BeginArea(new Rect(10, 10, 300, 100));
-    //    GUILayout.Label($"HasCrown: {hasCrown.Value}");
-    //    GUILayout.Label($"Target: {(targetPlayer != null ? "SÍ" : "NO")}");
-    //    GUILayout.Label($"Camera: {(playerCamera != null ? "OK" : "NULL")}");
-    //    if (targetPlayer != null)
-    //    {
-    //        float dist = Vector3.Distance(transform.position, targetPlayer.transform.position);
-    //        GUILayout.Label($"Distancia: {dist:F2}m / {robDistance}m");
-    //    }
-    //    GUILayout.EndArea();
-    //}
+    // =========================
+    // ===== MODO ESPECTADOR ===
+    // =========================
+
+    /// <summary>
+    /// Llamado por el servidor al finalizar ronda para convertir a este jugador en espectador.
+    /// </summary>
+    public void EnterSpectatorServer()
+    {
+        if (!IsServer) return;
+
+        // Quita corona y marca estado
+        hasCrown.Value = false;
+        isSpectator.Value = true;
+
+        // Cambia layer a Spectator (si existe) para aislar colisiones
+        ApplySpectatorLayerOnServer();
+
+        // Desactiva componentes de gameplay del lado servidor (p. ej. server-authoritative)
+        ApplyGameplayEnabled(false);
+
+        // Teletransporta arriba del mapa y apoya con raycast para vista desde arriba
+        TeleportToSpectatorPoint();
+
+        // Notifica al cliente local para activar cámara libre, ocultar HUD, etc.
+        EnterSpectatorClientRpc();
+    }
+
+    [ClientRpc]
+    void EnterSpectatorClientRpc()
+    {
+        // En cliente, apaga gameplay local y habilita cámara de espectador
+        ApplyGameplayEnabled(false);
+
+        // PlayerInput local (si existe) lo desactivamos para evitar que dispare acciones de gameplay
+        try
+        {
+            var pi = GetComponent<PlayerInput>();
+            if (pi != null) pi.enabled = false;
+        }
+        catch { }
+
+        // Activa el controlador de espectador si existe
+        TryEnableSpectatorLocal(true);
+
+        // Oculta HUDs relevantes si existieran
+        TryHideGameplayHUDs();
+    }
+
+    void TryEnableSpectatorLocal(bool enable)
+    {
+        // 1) Si existe un controlador de espectador, úsalo
+        var spec = GetComponent<SpectatorController>();
+        if (spec != null)
+        {
+            spec.EnableSpectatorLocal(enable);
+        }
+
+        // 2) Si existe un CameraAnchor con pivotes, deja que él mueva la MainCamera
+        var anchor = GetComponent<CameraAnchor>();
+        if (anchor != null)
+        {
+            if (enable) anchor.SwapToSpectatorPivot();
+            else anchor.SwapToPlayerPivot();
+        }
+        else
+        {
+            // Si no hay CameraAnchor, al menos desbloquea/bloquea cursor acorde (no imprescindible)
+            Cursor.lockState = enable ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !enable;
+        }
+
+        // 3) Nunca mostrar corona en modo espectador
+        UpdateCrownVisual(enable ? false : hasCrown.Value);
+    }
+
+    void TryHideGameplayHUDs()
+    {
+        // Silencioso; si no existen, no es error
+        try
+        {
+            var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
+            if (crownHud != null) crownHud.gameObject.SetActive(false);
+        }
+        catch { }
+        try
+        {
+            var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
+            if (powersHud != null) powersHud.gameObject.SetActive(false);
+        }
+        catch { }
+    }
+
+    void ApplySpectatorLayerOnServer()
+    {
+        int layer = LayerMask.NameToLayer(spectatorLayerName);
+        if (layer < 0)
+        {
+            Debug.LogWarning($"[{gameObject.name}] Layer '{spectatorLayerName}' no existe. Crea el layer en Project Settings > Tags and Layers.");
+            return;
+        }
+        SetLayerRecursively(gameObject, layer);
+    }
+
+    void ApplyGameplayEnabled(bool enabled)
+    {
+        if (gameplayComponentsToDisable == null) return;
+        for (int i = 0; i < gameplayComponentsToDisable.Length; i++)
+        {
+            var comp = gameplayComponentsToDisable[i];
+            if (comp == null) continue;
+            try { comp.enabled = enabled; } catch { }
+        }
+    }
+
+    void TeleportToSpectatorPoint()
+    {
+        // Sube y apoya sobre el suelo para asegurar vista desde arriba
+        Vector3 up = Vector3.up * Mathf.Max(0.5f, spectatorRaiseMeters);
+        Vector3 start = transform.position + up;
+
+        RaycastHit hit;
+        Vector3 finalPos = start;
+
+        // Raycast hacia abajo para apoyar a cierta altura del suelo (vista aérea cómoda)
+        if (Physics.Raycast(start + Vector3.up * 2f, Vector3.down, out hit, spectatorRaycastDown + 2f))
+        {
+            finalPos = hit.point + Vector3.up * 5f; // 5m sobre el suelo
+        }
+
+        // Aplica posición (lado servidor) — Netcode replicará transform según tu configuración
+        try
+        {
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null) rb.isKinematic = true;
+        }
+        catch { }
+
+        transform.position = finalPos;
+
+        // Pequeño ajuste de física
+        try
+        {
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                // limpiar velocidad si API disponible
+                try
+                {
+                    var prop = rb.GetType().GetProperty("velocity");
+                    if (prop != null && prop.CanWrite) prop.SetValue(rb, Vector3.zero, null);
+                    else
+                    {
+                        var prop2 = rb.GetType().GetProperty("linearVelocity");
+                        if (prop2 != null && prop2.CanWrite) prop2.SetValue(rb, Vector3.zero, null);
+                    }
+                }
+                catch { }
+            }
+        }
+        catch { }
+    }
+
+    void SetLayerRecursively(GameObject go, int layer)
+    {
+        go.layer = layer;
+        foreach (Transform t in go.transform)
+        {
+            if (t == null) continue;
+            SetLayerRecursively(t.gameObject, layer);
+        }
+    }
+    // ===== FIN ESPECTADOR =====
 }

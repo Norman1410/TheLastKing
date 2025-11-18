@@ -2858,7 +2858,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spectatorPivot: {fileID: 2795458811228981630}
-  playerPivot: {fileID: 2795458811228981630}
+  playerPivot: {fileID: 8337705070142218002}
 --- !u!114 &-8887813982848660244
 MonoBehaviour:
   m_ObjectHideFlags: 0

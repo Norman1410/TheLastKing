@@ -610,7 +610,7 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        // Despawn non-winners' PlayerObjects but keep them connected and mark them eliminated
+        // ======== CAMBIO CLAVE: convertir perdedores en ESPECTADORES (sin despawn) ========
         foreach (var clientId in nm.ConnectedClientsIds)
         {
             if (winners.Contains(clientId))
@@ -623,35 +623,32 @@ public class LanLobbyState : NetworkBehaviour
             {
                 try
                 {
-                    Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
+                    Debug.Log($"[LanLobbyState] Client {clientId} lost this round -> switching to spectator (no despawn).");
 
-                    // Notify the client that they are eliminated (will run only on that client)
-                    try
-                    {
-                        var clientRpcParams = new ClientRpcParams
-                        {
-                            Send = new ClientRpcSendParams
-                            {
-                                TargetClientIds = new ulong[] { clientId }
-                            }
-                        };
-                        NotifyEliminatedClientRpc(clientRpcParams);
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
-                    }
-
-                    // Despawn and mark eliminated so they won't be included in next rounds
-                    po.Despawn(destroy: true);
+                    // Marcar eliminado para no volver a spawnear como jugador en próximas rondas
                     eliminatedClients.Add(clientId);
+
+                    // Transición server-authoritative al modo espectador en el Player (requiere método en PlayerRob)
+                    var pr = po.GetComponent<PlayerRob>();
+                    if (pr != null)
+                    {
+                        pr.EnterSpectatorServer(); // cambia layer, desactiva gameplay, TP arriba y habilita cámara libre en su cliente
+                    }
+
+                    // Notificar al cliente para ocultar HUDs (crown/powers) — se mantiene tu RPC existente
+                    var clientRpcParams = new ClientRpcParams
+                    {
+                        Send = new ClientRpcSendParams { TargetClientIds = new ulong[] { clientId } }
+                    };
+                    NotifyEliminatedClientRpc(clientRpcParams);
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                    Debug.LogWarning($"[LanLobbyState] Failed to switch client {clientId} to spectator: {e}");
                 }
             }
         }
+        // ======== FIN CAMBIO ========
 
         // Update network variables so clients know the timer stopped
         TimerActive.Value = false;
@@ -839,8 +836,7 @@ public class LanLobbyState : NetworkBehaviour
                     }
                 }
 
-                // Destroy local player object if present (server will despawn it too)
-                // But avoid double-destroy; the server will call despawn.
+                // OJO: Ya no destruimos aquí; el server no hace despawn del perdedor.
             }
         }
         catch (System.Exception e)

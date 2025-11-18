@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 // Simple runtime UI to show match winner and match over messages.
 public class WinnerUI : MonoBehaviour
@@ -18,6 +19,15 @@ public class WinnerUI : MonoBehaviour
 
     [Tooltip("Sprite to show for eliminated players (drag Assets/Images/game over.png here)")]
     public Sprite gameOverSprite;
+
+    [Header("Auto-hide (for losers)")]
+    [Tooltip("Si el local pierde, ocultar el cartel automáticamente después de unos segundos.")]
+    public bool autoHideWhenLocalLoses = true;
+
+    [Tooltip("Segundos antes de ocultar el cartel cuando el local NO es el ganador.")]
+    public float autoHideDelaySeconds = 4f;
+
+    Coroutine _autoHideCo;
 
     void Awake()
     {
@@ -54,7 +64,7 @@ public class WinnerUI : MonoBehaviour
         mtGO.transform.SetParent(panel.transform, false);
         mainText = mtGO.AddComponent<Text>();
         mainText.alignment = TextAnchor.MiddleCenter;
-    mainText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        mainText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         mainText.fontSize = 72;
         mainText.color = Color.yellow;
         var mtRect = mainText.GetComponent<RectTransform>();
@@ -68,7 +78,7 @@ public class WinnerUI : MonoBehaviour
         stGO.transform.SetParent(panel.transform, false);
         subText = stGO.AddComponent<Text>();
         subText.alignment = TextAnchor.MiddleCenter;
-    subText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        subText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         subText.fontSize = 28;
         subText.color = Color.white;
         var stRect = subText.GetComponent<RectTransform>();
@@ -121,6 +131,10 @@ public class WinnerUI : MonoBehaviour
     {
         if (panel == null) CreateUI();
         panel.SetActive(true);
+
+        // Cancelar cualquier autohide previo
+        if (_autoHideCo != null) { StopCoroutine(_autoHideCo); _autoHideCo = null; }
+
         // If sprites are available, prefer showing images. Otherwise fall back to text messages.
         if (resultImage != null && (winnerSprite != null || gameOverSprite != null))
         {
@@ -131,10 +145,12 @@ public class WinnerUI : MonoBehaviour
             resultImage.gameObject.SetActive(true);
             if (isLocal)
             {
+                // Local es el ganador
                 resultImage.sprite = winnerSprite ?? gameOverSprite;
             }
             else
             {
+                // Local perdió
                 resultImage.sprite = gameOverSprite ?? winnerSprite;
             }
         }
@@ -149,10 +165,23 @@ public class WinnerUI : MonoBehaviour
             }
             else
             {
-                mainText.text = "MATCH OVER";
+                mainText.text = "GAME OVER";
                 subText.text = $"Winner: {winnerName}";
             }
         }
+
+        // Auto-ocultar solo si el LOCAL perdió (isLocal == false)
+        if (!isLocal && autoHideWhenLocalLoses && autoHideDelaySeconds > 0f)
+        {
+            _autoHideCo = StartCoroutine(AutoHideAfter(autoHideDelaySeconds));
+        }
+    }
+
+    IEnumerator AutoHideAfter(float seconds)
+    {
+        yield return new WaitForSeconds(seconds);
+        InternalHide();
+        _autoHideCo = null;
     }
 
     public static void Hide()
@@ -162,6 +191,11 @@ public class WinnerUI : MonoBehaviour
 
     void InternalHide()
     {
+        if (_autoHideCo != null) { StopCoroutine(_autoHideCo); _autoHideCo = null; }
         if (panel != null) panel.SetActive(false);
+        // También ocultamos explícitamente hijos por si hay estados raros entre escenas
+        if (resultImage != null) resultImage.gameObject.SetActive(false);
+        if (mainText != null) mainText.gameObject.SetActive(false);
+        if (subText != null) subText.gameObject.SetActive(false);
     }
 }

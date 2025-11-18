@@ -1,35 +1,106 @@
 using UnityEngine;
 
+/// <summary>
+/// Re-ancla la MainCamera al pivot de jugador o al pivot de espectador,
+/// y expone SetActiveLocal(bool) para integrarse con SpectatorController.
+/// </summary>
 public class CameraAnchor : MonoBehaviour
 {
-    [SerializeField] private Transform spectatorPivot; // child under SpectatorController
-    [SerializeField] private Transform playerPivot;    // your existing player camera holder
+    [Header("Pivots (asigna en el prefab del Player)")]
+    public Transform playerPivot;     // Ej.: hijo "PlayerPivot" (altura de ojos)
+    public Transform spectatorPivot;  // Ej.: hijo "SpectatorPivot" (vista aérea)
 
-    private Camera _main;
+    [Header("Opcional")]
+    [Tooltip("Si no hay MainCamera en la escena, crea una en runtime.")]
+    public bool createCameraIfMissing = true;
 
-    void Start()
+    [Tooltip("Bloquea el cursor cuando el espectador está activo.")]
+    public bool lockCursorWhenActive = true;
+
+    Camera _mainCam;
+    bool _activeLocal = false;
+
+    void Awake()
     {
-        _main = Camera.main;
-        if (_main == null)
+        EnsureMainCamera();
+    }
+
+    void EnsureMainCamera()
+    {
+        if (_mainCam != null) return;
+
+        _mainCam = Camera.main;
+        if (_mainCam == null && createCameraIfMissing)
         {
-            var camObj = new GameObject("MainCamera");
-            _main = camObj.AddComponent<Camera>();
-            camObj.tag = "MainCamera";
+            var go = new GameObject("MainCamera");
+            _mainCam = go.AddComponent<Camera>();
+            _mainCam.tag = "MainCamera";
+            _mainCam.nearClipPlane = 0.05f;
+            _mainCam.farClipPlane  = 1000f;
         }
     }
 
-    public void SetActiveLocal(bool spectator)
+    /// <summary>
+    /// Activa/Desactiva el anclaje local al modo espectador (true) o modo jugador (false).
+    /// Llamado típicamente por SpectatorController.
+    /// </summary>
+    public void SetActiveLocal(bool active)
     {
-        if (_main == null) return;
-        if (spectator) ParentAndReset(_main.transform, spectatorPivot);
-        else ParentAndReset(_main.transform, playerPivot);
+        _activeLocal = active;
+        if (active) SwapToSpectatorPivot();
+        else        SwapToPlayerPivot();
+
+        if (lockCursorWhenActive)
+        {
+            Cursor.lockState = active ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible   = !active;
+        }
     }
 
-    private void ParentAndReset(Transform t, Transform parent)
+    /// <summary>
+    /// Ancla la MainCamera al pivot de jugador.
+    /// </summary>
+    public void SwapToPlayerPivot()
     {
-        if (parent == null) return;
-        t.SetParent(parent);
-        t.localPosition = Vector3.zero;
-        t.localRotation = Quaternion.identity;
+        EnsureMainCamera();
+        if (_mainCam == null)
+        {
+            Debug.LogWarning("[CameraAnchor] No hay MainCamera disponible para anclar (PlayerPivot).");
+            return;
+        }
+        if (playerPivot == null)
+        {
+            Debug.LogWarning("[CameraAnchor] playerPivot no asignado.");
+            return;
+        }
+
+        AttachToPivot(_mainCam.transform, playerPivot);
+    }
+
+    /// <summary>
+    /// Ancla la MainCamera al pivot de espectador.
+    /// </summary>
+    public void SwapToSpectatorPivot()
+    {
+        EnsureMainCamera();
+        if (_mainCam == null)
+        {
+            Debug.LogWarning("[CameraAnchor] No hay MainCamera disponible para anclar (SpectatorPivot).");
+            return;
+        }
+        if (spectatorPivot == null)
+        {
+            Debug.LogWarning("[CameraAnchor] spectatorPivot no asignado.");
+            return;
+        }
+
+        AttachToPivot(_mainCam.transform, spectatorPivot);
+    }
+
+    void AttachToPivot(Transform cam, Transform pivot)
+    {
+        cam.SetParent(pivot, worldPositionStays: false);
+        cam.localPosition = Vector3.zero;
+        cam.localRotation = Quaternion.identity;
     }
 }
