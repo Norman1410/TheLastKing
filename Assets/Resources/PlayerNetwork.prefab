@@ -1151,37 +1151,6 @@ Transform:
   - {fileID: 2243715007824012833}
   m_Father: {fileID: 234334459214550697}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &3581840666108911305
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 9194150385226514309}
-  m_Layer: 0
-  m_Name: SpectatorPivot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &9194150385226514309
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3581840666108911305}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: -3}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 3020579608923997534}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3696382487604928516
 GameObject:
   m_ObjectHideFlags: 0
@@ -1257,37 +1226,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!1 &3761493828121770410
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7683308297841045079}
-  m_Layer: 0
-  m_Name: PlayerPivot
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7683308297841045079
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3761493828121770410}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.195, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 3020579608923997534}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3955410474559847632
 GameObject:
   m_ObjectHideFlags: 0
@@ -2662,8 +2600,6 @@ GameObject:
   - component: {fileID: 3418417786922247155}
   - component: {fileID: 6656697848171417622}
   - component: {fileID: 5806351486050689295}
-  - component: {fileID: 775403124405975225}
-  - component: {fileID: 3736600615679284071}
   m_Layer: 3
   m_Name: PlayerNetwork
   m_TagString: Player
@@ -2690,8 +2626,6 @@ Transform:
   - {fileID: 3680376337918313167}
   - {fileID: 2793399574356843444}
   - {fileID: 4057470810871669845}
-  - {fileID: 7683308297841045079}
-  - {fileID: 9194150385226514309}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &3460076834021440431
@@ -2895,41 +2829,6 @@ CapsuleCollider:
   m_Height: 1.6597562
   m_Direction: 1
   m_Center: {x: -0.006222725, y: 0.59853673, z: 0.018980503}
---- !u!114 &775403124405975225
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6996942344717257674}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c96b4da4b59ba5145823e98e577d09cd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  spectatorPivot: {fileID: 9194150385226514309}
-  playerPivot: {fileID: 7683308297841045079}
---- !u!114 &3736600615679284071
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6996942344717257674}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: da236830d7e63b44684a0bfcc6ba578a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowTopMostFoldoutHeaderGroup: 1
-  cameraPivot: {fileID: 9194150385226514309}
-  moveSpeed: 12
-  fastMultiplier: 2
-  verticalSpeed: 8
-  mouseSensitivity: 1.2
-  clampToBox: 1
-  minBounds: {x: -120, y: 10, z: -120}
-  maxBounds: {x: 120, y: 120, z: 120}
 --- !u!1 &7199430074716762054
 GameObject:
   m_ObjectHideFlags: 0
