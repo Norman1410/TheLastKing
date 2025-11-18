@@ -256,23 +256,34 @@ public class PowerManager : MonoBehaviour
         switch (type)
         {
             case PowerType.Boost:
-                duration = 5f; // Duración del Boost
-                var pm = player.GetComponent<PlayerMovement>();
+                duration = 5f;
+                var pm = player.GetComponent<FirstPersonController>(); 
                 if (pm != null)
                 {
-                    float original = pm.speed;
-                    pm.speed *= 3f;
+                    
+                    float originalWalkSpeed = pm.walkSpeed;
+                    float originalRunSpeed = pm.runSpeed;
+                    
+                    // Aumentar la velocidad
+                    pm.walkSpeed *= 3f;
+                    pm.runSpeed *= 3f; 
+                    
                     yield return new WaitForSeconds(duration);
-                    pm.speed = original;
+                    
+                    // Revertir
+                    pm.walkSpeed = originalWalkSpeed;
+                    pm.runSpeed = originalRunSpeed;
                 }
                 break;
+                
             case PowerType.JumpHigh:
-                duration = 5f; // Duración del Super Salto
-                var pc = player.GetComponent<PlayerMovement>();
+                duration = 5f;
+                var pc = player.GetComponent<FirstPersonController>();
                 if (pc != null)
                 {
                     float origJ = pc.jumpHeight;
-                    pc.jumpHeight *= 3f;
+                    pc.jumpHeight *= 4f;
+                    
                     yield return new WaitForSeconds(duration);
                     pc.jumpHeight = origJ;
                 }
