@@ -34,8 +34,8 @@ public class FirstPersonController : MonoBehaviour
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
-    private PlayerAnimatorSync animatorSync;
-    private NetworkObject netObj;
+    //private PlayerAnimatorSync animatorSync;
+    //private NetworkObject netObj;
     
     
     // Movement variables
@@ -57,13 +57,13 @@ public class FirstPersonController : MonoBehaviour
         controller = GetComponent<CharacterController>();
 
         // Asegurar referencia al NetworkObject
-        if (netObj == null)
-            netObj = GetComponent<NetworkObject>();
-
-        // Obtener animatorSync si existe
-        animatorSync = GetComponent<PlayerAnimatorSync>();
-        if (animatorSync == null)
-            animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
+        //if (netObj == null)
+        //    netObj = GetComponent<NetworkObject>();
+//
+        //// Obtener animatorSync si existe
+        //animatorSync = GetComponent<PlayerAnimatorSync>();
+        //if (animatorSync == null)
+        //    animatorSync = GetComponentInChildren<PlayerAnimatorSync>();
 
         // Get components
         controller = GetComponent<CharacterController>();
@@ -95,10 +95,10 @@ public class FirstPersonController : MonoBehaviour
     private void OnEnable()
     {
         Debug.LogWarning("[FirstPersonController]: Corriendo OnEnable");
-        if (netObj == null){
-            Debug.LogWarning("[FirstPersonController]: Obteniendo NetworkObject en OnEnable");
-            netObj = GetComponent<NetworkObject>();
-        }
+        //if (netObj == null){
+        //    Debug.LogWarning("[FirstPersonController]: Obteniendo NetworkObject en OnEnable");
+        //    netObj = GetComponent<NetworkObject>();
+        //}
 
         //if (netObj != null && !netObj.IsOwner)
         //{
@@ -126,7 +126,7 @@ public class FirstPersonController : MonoBehaviour
     
     private void OnDisable()
     {
-        if (netObj != null && !netObj.IsOwner) return;
+        //if (netObj != null && !netObj.IsOwner) return;
 
         Debug.LogWarning("[FirstPersonController]: Unsubscribing from input events");
         
@@ -249,7 +249,7 @@ public class FirstPersonController : MonoBehaviour
         if (!useAnimations || animator == null) return;
         
         // Solo el jugador local actualiza animaciones
-        if (!netObj.IsOwner) return;
+        //if (!netObj.IsOwner) return;
 
         // Magnitud del movimiento (para el parámetro Speed)
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
@@ -266,15 +266,15 @@ public class FirstPersonController : MonoBehaviour
         animator.SetBool("IsRunning", isRunning);
         animator.SetBool("IsGrounded", isGrounded);
 
-        if (animatorSync != null && netObj != null && netObj.IsOwner)
-        {
-            float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
-            animatorSync.OwnerSetSpeed(speedToSend);
-            animatorSync.OwnerSetDirection(direction);
-            animatorSync.OwnerSetRunning(isRunning);
-            animatorSync.OwnerSetJumping(isJumping);
-            animatorSync.OwnerSetGrounded(isGrounded);
-        }
+        //if (animatorSync != null && netObj != null && netObj.IsOwner)
+        //{
+        //    float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
+        //    animatorSync.OwnerSetSpeed(speedToSend);
+        //    animatorSync.OwnerSetDirection(direction);
+        //    animatorSync.OwnerSetRunning(isRunning);
+        //    animatorSync.OwnerSetJumping(isJumping);
+        //    animatorSync.OwnerSetGrounded(isGrounded);
+        //}
 
 
         //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
