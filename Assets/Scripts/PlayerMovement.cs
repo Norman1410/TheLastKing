@@ -30,6 +30,13 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
 
     [SerializeField] private NetworkObject netObj;
+    [Header("Trap Settings")]
+    [SerializeField] private string trapLayerName = "Trampa";
+    [SerializeField] private Vector3 defaultTrapDropDirection = new Vector3(0, -1, 0);
+    [SerializeField] private float defaultTrapDropForce = 3f;
+
+    private int trapLayer;
+
     
     // Components
     private CharacterController controller;
@@ -75,9 +82,19 @@ public class FirstPersonController : MonoBehaviour
         // Lock cursor to center of screen
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        
+
         // Inicializar la rotación Y con la rotación actual del jugador
         yRotation = transform.eulerAngles.y;
+        
+        // Trap layer lookup
+        trapLayer = LayerMask.NameToLayer(trapLayerName);
+        if (trapLayer == -1)
+        {
+            Debug.LogError($"[FirstPersonController] Trap layer '{trapLayerName}' not found! " +
+                           "Check that the layer exists and is spelled correctly.");
+        }
+
+
     }
     
     private void OnEnable()
@@ -369,4 +386,44 @@ public class FirstPersonController : MonoBehaviour
 
         walkSpeed = newSpeed;
     }
+
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        // No collider or trap layer not set
+        if (hit.collider == null || trapLayer == -1)
+            return;
+
+        // Only react to colliders on the Trampa layer
+        if (hit.collider.gameObject.layer != trapLayer)
+            return;
+
+        // Get PlayerRob on this same object
+        PlayerRob pr = GetComponent<PlayerRob>();
+        if (pr == null || !pr.HasCrown())
+            return;
+
+        // Default values
+        Vector3 dir = defaultTrapDropDirection;
+        float force = defaultTrapDropForce;
+
+        // If it's a WallAppearsController, use its custom values and start its cycle
+        WallAppearsController wallTrap = hit.collider.GetComponentInParent<WallAppearsController>();
+        if (wallTrap != null)
+        {
+            dir = wallTrap.dropDirection;
+            force = wallTrap.dropForce;
+            wallTrap.OnPlayerHit();
+        }
+
+        // Ask the server to drop the crown
+        pr.DropCrownServerRpc(dir.normalized, force);
+
+        Debug.Log($"[TrapCollision] Player hit trap '{hit.collider.name}' (Layer = {LayerMask.LayerToName(trapLayer)}). Crown dropped.");
+        Debug.Log("[DEBUG] Hit collider: " + hit.collider.name + " | Layer: " + LayerMask.LayerToName(hit.collider.gameObject.layer));
+
+    }
+
+
+
+
 }

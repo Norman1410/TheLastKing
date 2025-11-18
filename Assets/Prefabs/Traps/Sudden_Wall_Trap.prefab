@@ -46,8 +46,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wallObject: {fileID: 5343540746828351863}
-  activeTime: 1.5
+  activeTime: 8
   inactiveTime: 3
+  wallCollider: {fileID: 9178019163449224699}
+  dropDirection: {x: 0, y: -1, z: 0}
+  dropForce: 3
 --- !u!1 &5343540746828351863
 GameObject:
   m_ObjectHideFlags: 0
