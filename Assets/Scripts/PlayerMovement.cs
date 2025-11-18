@@ -1,3 +1,5 @@
+using Unity.Netcode;
+using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -26,16 +28,20 @@ public class FirstPersonController : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
+
+    [SerializeField] private NetworkObject netObj;
     
     // Components
     private CharacterController controller;
     private PlayerInputActions inputActions;
+    
     
     // Movement variables
     private Vector2 moveInput;
     private Vector3 velocity;
     private bool isGrounded;
     private bool isRunning;
+    private bool isMoving;
     private bool wasGrounded;
     private bool isJumping;
     
@@ -48,15 +54,19 @@ public class FirstPersonController : MonoBehaviour
     {
         // Get components
         controller = GetComponent<CharacterController>();
+        //netObj = GetComponent<NetworkObject>();
         
         // Si no se asignó un animator, intentar encontrarlo
         if (animator == null)
-        {
+        {   
+            Debug.LogWarning("Animator not assigned! Trying to find one in children.");
             animator = GetComponent<Animator>();
             if (animator == null)
             {
                 animator = GetComponentInChildren<Animator>();
             }
+        }else {
+            Debug.Log("Animator assigned via inspector.");
         }
         
         // Create and setup input actions
@@ -157,25 +167,35 @@ public class FirstPersonController : MonoBehaviour
     
     private void HandleMovement()
     {
-        // Guard: ensure CharacterController is present and active before calling Move
         if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
-        {
-            // Avoid calling CharacterController.Move on an inactive/disabled controller
             return;
-        }
 
-        // Calculate movement direction based on input
         float currentSpeed = isRunning ? runSpeed : walkSpeed;
         Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
+
 
         // Apply gravity
         velocity.y += (gravity * gravityMultiplier) * Time.deltaTime; 
         controller.Move(velocity * Time.deltaTime);
 
-        // Combine horizontal movement and vertical velocity into a single Move call
+        //Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
+
+        isMoving = moveInput.magnitude > 0.1f;
+
+        if (!isGrounded){
+            velocity.y += gravity * Time.deltaTime;
+        }else if (velocity.y < 0){
+            velocity.y = -2f;
+        }
+
+
+
         Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
         controller.Move(finalMovement * Time.deltaTime);
+
+        //Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
     }
+
     
     private void HandleMouseLook()
     {
@@ -201,26 +221,40 @@ public class FirstPersonController : MonoBehaviour
             Debug.LogWarning("Player Camera is not assigned! Please assign it in the inspector.");
         }
     }
-    
+
     private void UpdateAnimations()
     {
         if (!useAnimations || animator == null) return;
         
-        // Calcular si el personaje se está moviendo
-        bool isMoving = moveInput.magnitude > 0.1f;
-        
+        // Solo el jugador local actualiza animaciones
+        if (!netObj.IsOwner) return;
+
+        // Magnitud del movimiento (para el parámetro Speed)
+        float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
+
+        // Dirección hacia adelante o atrás (para el parámetro Direction)
+        float direction = moveInput.y;
+
         // Actualizar parámetros del Animator
-        animator.SetBool("IsWalking", isMoving && !isRunning);
-        animator.SetBool("IsRunning", isMoving && isRunning);
+        if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f); // 0 → 2
+        else animator.SetFloat("Speed", currentSpeed); // 0 → 1
+        
+        animator.SetFloat("Direction", direction);
         animator.SetBool("IsJumping", isJumping);
-        
-        // Opcional: también puedes enviar la velocidad como un float para blend trees
-        float speed = isMoving ? (isRunning ? runSpeed : walkSpeed) : 0f;
-        animator.SetFloat("Speed", speed);
-        
-        // Opcional: enviar el estado de grounded
+        animator.SetBool("IsRunning", isRunning);
         animator.SetBool("IsGrounded", isGrounded);
+
+
+        //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
+        Debug.Log($"Animator Parameters -->");
+        if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
+        if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
+        //Debug.Log($" - IsJumping: {animator.GetBool("IsJumping")}");
+        //Debug.Log($" - IsRunning: {animator.GetBool("IsRunning")}");
+        //Debug.Log($" - IsGrounded: {animator.GetBool("IsGrounded")}");
     }
+
+
     
     // Input callback methods
     private void OnMove(InputAction.CallbackContext context)
@@ -242,6 +276,7 @@ public class FirstPersonController : MonoBehaviour
             // Calculate jump velocity using physics formula: v = sqrt(h * -2 * g)
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             isJumping = true;
+            UpdateAnimations(); // Actualizar animaciones inmediatamente
             Debug.Log($"Jumping with velocity: {velocity.y}");
         }
     }
@@ -270,6 +305,8 @@ public class FirstPersonController : MonoBehaviour
             Gizmos.DrawWireSphere(rayEnd, 0.1f);
         }
         
+
+
         // Visualizar la dirección de la cámara
         if (playerCamera != null)
         {
@@ -277,12 +314,22 @@ public class FirstPersonController : MonoBehaviour
             Gizmos.DrawRay(playerCamera.transform.position, playerCamera.transform.forward * 2f);
         }
     }
-    
+
     // Método público para permitir/bloquear el movimiento del mouse (útil para menús)
     public void SetCursorLock(bool locked)
     {
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !locked;
+    }
+
+    void OnGUI()
+    {
+        // ESQUINA INFERIOR IZQUIERDA
+        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
+
+        GUILayout.Label($"isWalking: {isMoving}");
+        
+        GUILayout.EndArea();
     }
     
     // Métodos públicos para obtener el estado (útiles para otros scripts)
@@ -330,5 +377,4 @@ public class FirstPersonController : MonoBehaviour
 
         walkSpeed = newSpeed;
     }
-
 }
