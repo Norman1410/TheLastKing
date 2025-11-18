@@ -29,8 +29,6 @@ public class SpawnAllocator : NetworkBehaviour
         _spawns = FindAnyObjectByType<NetworkSpawnPoints>();
         if (_spawns == null)
             Debug.LogError("SpawnAllocator: No hay un NetworkSpawnPoints en la escena.");
-        else
-            Debug.Log($"[SpawnAllocator] Encontrado NetworkSpawnPoints con {_spawns.Count} puntos.");
     }
 
     private void OnDestroy()
@@ -69,17 +67,12 @@ public class SpawnAllocator : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        Debug.Log("[SpawnAllocator] OnNetworkSpawn en SERVER, registrando callbacks.");
-
         NetworkManager.OnClientConnectedCallback += OnClientConnected;
         NetworkManager.OnClientDisconnectCallback += OnClientDisconnected;
 
         // Por si el Host ya está conectado antes de que este componente se inicialice
         foreach (var kv in NetworkManager.ConnectedClients)
-        {
-            Debug.Log($"[SpawnAllocator] EnsureSpawn inicial para cliente {kv.Key}");
             EnsureSpawn(kv.Key);
-        }
     }
 
     public override void OnNetworkDespawn()
@@ -91,21 +84,14 @@ public class SpawnAllocator : NetworkBehaviour
         NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
-    private void OnClientConnected(ulong clientId)
-    {
-        Debug.Log($"[SpawnAllocator] OnClientConnected para {clientId}");
-        EnsureSpawn(clientId);
-    }
+    private void OnClientConnected(ulong clientId) => EnsureSpawn(clientId);
 
     private void OnClientDisconnected(ulong clientId)
     {
-        Debug.Log($"[SpawnAllocator] OnClientDisconnected para {clientId}");
-
         if (_assigned.TryGetValue(clientId, out int idx))
         {
             _assigned.Remove(clientId);
             _occupied.Remove(idx);
-            Debug.Log($"[SpawnAllocator] Liberando índice {idx} de cliente {clientId}");
         }
     }
 
@@ -114,23 +100,15 @@ public class SpawnAllocator : NetworkBehaviour
     // =========================
     private void EnsureSpawn(ulong clientId)
     {
-        if (_spawns == null || _spawns.Count == 0)
-        {
-            Debug.LogWarning("[SpawnAllocator] No hay spawn points configurados.");
-            return;
-        }
+        if (_spawns == null || _spawns.Count == 0) return;
 
         if (!NetworkManager.ConnectedClients.TryGetValue(clientId, out var client))
-        {
-            Debug.LogWarning($"[SpawnAllocator] ClientId {clientId} no está en ConnectedClients.");
             return;
-        }
 
         var playerObj = client.PlayerObject;
         if (playerObj == null || !playerObj.IsSpawned)
         {
             // A veces Netcode aún no ha creado el PlayerObject cuando llega este callback
-            Debug.Log($"[SpawnAllocator] PlayerObject de {clientId} aún no está listo, esperando...");
             StartCoroutine(WaitForPlayerObjectThenAssign(clientId));
             return;
         }
@@ -148,7 +126,6 @@ public class SpawnAllocator : NetworkBehaviour
                 var po = client.PlayerObject;
                 if (po != null && po.IsSpawned)
                 {
-                    Debug.Log($"[SpawnAllocator] PlayerObject de {clientId} listo tras espera. Asignando spawn.");
                     AssignToPlayer(clientId, po);
                     yield break;
                 }
@@ -162,22 +139,13 @@ public class SpawnAllocator : NetworkBehaviour
     private void AssignToPlayer(ulong clientId, NetworkObject playerObj)
     {
         // Ya asignado
-        if (_assigned.ContainsKey(clientId))
-        {
-            Debug.Log($"[SpawnAllocator] Cliente {clientId} ya tiene spawn asignado (índice {_assigned[clientId]}).");
-            return;
-        }
+        if (_assigned.ContainsKey(clientId)) return;
 
         int index = FindFreeIndex();
         if (index < 0)
         {
-            if (!fallbackToZero)
-            {
-                Debug.LogWarning($"[SpawnAllocator] No hay puntos libres y fallbackToZero = false. Cliente {clientId} se queda donde está.");
-                return;
-            }
+            if (!fallbackToZero) return;
             index = 0;
-            Debug.LogWarning($"[SpawnAllocator] No hay puntos libres, usando índice 0 para cliente {clientId}");
         }
 
         _occupied.Add(index);
@@ -185,9 +153,6 @@ public class SpawnAllocator : NetworkBehaviour
 
         Vector3 pos = _spawns.GetPoint(index);
         Quaternion rot = _spawns.GetRotation(index);
-
-        Debug.Log($"[SpawnAllocator] ASIGNANDO spawn al cliente {clientId} en índice {index}, pos {pos}, rot {rot.eulerAngles}");
-
         TeleportPlayer(playerObj, pos, rot);
     }
 
@@ -196,13 +161,8 @@ public class SpawnAllocator : NetworkBehaviour
         for (int i = 0; i < _spawns.Count; i++)
         {
             if (_occupied.Contains(i)) continue;
-            if (_spawns.IsFree(i))
-            {
-                Debug.Log($"[SpawnAllocator] Índice libre encontrado: {i}");
-                return i;
-            }
+            if (_spawns.IsFree(i)) return i;
         }
-        Debug.Log("[SpawnAllocator] No se encontraron índices libres.");
         return -1;
     }
 
