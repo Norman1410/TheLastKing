@@ -3,6 +3,8 @@ using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+
+
 [RequireComponent(typeof(CharacterController))]
 public class FirstPersonController : MonoBehaviour
 {
@@ -11,7 +13,6 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] public float runSpeed = 8f;
     [SerializeField] public float jumpHeight = 2f;
     [SerializeField] public float gravity = -9.81f;
-    [SerializeField] public float gravityMultiplier = 1.0f;
     
     [Header("Mouse Look Settings")]
     [SerializeField] private float mouseSensitivity = 2f; // Reducido para mejor control
@@ -29,15 +30,7 @@ public class FirstPersonController : MonoBehaviour
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
 
-
-    [SerializeField] private NetworkObject netObj;
-    [Header("Trap Settings")]
-    [SerializeField] private string trapLayerName = "Trampa";
-    [SerializeField] private Vector3 defaultTrapDropDirection = new Vector3(0, -1, 0);
-    [SerializeField] private float defaultTrapDropForce = 3f;
-
-    private int trapLayer;
-
+    
     
     // Components
     private CharacterController controller;
@@ -95,19 +88,9 @@ public class FirstPersonController : MonoBehaviour
         // Lock cursor to center of screen
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-
+        
         // Inicializar la rotación Y con la rotación actual del jugador
         yRotation = transform.eulerAngles.y;
-        
-        // Trap layer lookup
-        trapLayer = LayerMask.NameToLayer(trapLayerName);
-        if (trapLayer == -1)
-        {
-            Debug.LogError($"[FirstPersonController] Trap layer '{trapLayerName}' not found! " +
-                           "Check that the layer exists and is spelled correctly.");
-        }
-
-
     }
     
     private void OnEnable()
@@ -214,27 +197,29 @@ public class FirstPersonController : MonoBehaviour
     }
     
     private void HandleMovement()
-{
-    if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
-        return;
-
-    float currentSpeed = isRunning ? runSpeed : walkSpeed;
-    Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-
-    // APLICACIÓN DE GRAVEDAD Y MOVIMIENTO LATERAL
-    velocity.y += (gravity * gravityMultiplier) * Time.deltaTime; 
-    
-    if (isGrounded && velocity.y < 0)
     {
-        velocity.y = -2f; 
+        if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
+            return;
+
+        float currentSpeed = isRunning ? runSpeed : walkSpeed;
+        Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
+
+        //Debug.Log("Grounded: " + isGrounded + ", Move Input: " + moveInput + ", Move Vector: " + move);
+
+        isMoving = moveInput.magnitude > 0.1f;
+
+        if (!isGrounded){
+            velocity.y += gravity * Time.deltaTime;
+        }else if (velocity.y < 0){
+            velocity.y = -2f;
+        }
+
+
+        Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
+        controller.Move(finalMovement * Time.deltaTime);
+
+        //Debug.Log("Final movement: " + finalMovement + ", Speed: " + currentSpeed + ", Velocity Y: " + velocity.y);
     }
-    
-    isMoving = moveInput.magnitude > 0.1f;
-
-    Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
-    controller.Move(finalMovement * Time.deltaTime);
-
-}
 
     
     private void HandleMouseLook()
@@ -372,15 +357,15 @@ public class FirstPersonController : MonoBehaviour
         Cursor.visible = !locked;
     }
 
-    //void OnGUI()
-    //{
-    //    // ESQUINA INFERIOR IZQUIERDA
-    //    GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
-//
-    //    GUILayout.Label($"isWalking: {isMoving}");
-    //    
-    //    GUILayout.EndArea();
-    //}
+    void OnGUI()
+    {
+        // ESQUINA INFERIOR IZQUIERDA
+        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
+
+        GUILayout.Label($"isWalking: {isMoving}");
+        
+        GUILayout.EndArea();
+    }
     
     // Métodos públicos para obtener el estado (útiles para otros scripts)
     public bool IsGrounded() => isGrounded;
@@ -427,44 +412,4 @@ public class FirstPersonController : MonoBehaviour
 
         walkSpeed = newSpeed;
     }
-
-    private void OnControllerColliderHit(ControllerColliderHit hit)
-    {
-        // No collider or trap layer not set
-        if (hit.collider == null || trapLayer == -1)
-            return;
-
-        // Only react to colliders on the Trampa layer
-        if (hit.collider.gameObject.layer != trapLayer)
-            return;
-
-        // Get PlayerRob on this same object
-        PlayerRob pr = GetComponent<PlayerRob>();
-        if (pr == null || !pr.HasCrown())
-            return;
-
-        // Default values
-        Vector3 dir = defaultTrapDropDirection;
-        float force = defaultTrapDropForce;
-
-        // If it's a WallAppearsController, use its custom values and start its cycle
-        WallAppearsController wallTrap = hit.collider.GetComponentInParent<WallAppearsController>();
-        if (wallTrap != null)
-        {
-            dir = wallTrap.dropDirection;
-            force = wallTrap.dropForce;
-            wallTrap.OnPlayerHit();
-        }
-
-        // Ask the server to drop the crown
-        pr.DropCrownServerRpc(dir.normalized, force);
-
-        Debug.Log($"[TrapCollision] Player hit trap '{hit.collider.name}' (Layer = {LayerMask.LayerToName(trapLayer)}). Crown dropped.");
-        Debug.Log("[DEBUG] Hit collider: " + hit.collider.name + " | Layer: " + LayerMask.LayerToName(hit.collider.gameObject.layer));
-
-    }
-
-
-
-
 }
