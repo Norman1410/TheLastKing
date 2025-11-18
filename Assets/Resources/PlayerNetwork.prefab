@@ -2606,6 +2606,7 @@ GameObject:
   - component: {fileID: 3418417786922247155}
   - component: {fileID: 6656697848171417622}
   - component: {fileID: 4288848699264655184}
+  - component: {fileID: 1209354568462187854}
   m_Layer: 3
   m_Name: PlayerNetwork
   m_TagString: Player
@@ -2833,7 +2834,6 @@ MonoBehaviour:
   playerCamera: {fileID: 2692074369058656737}
   animator: {fileID: 4930169348361921155}
   useAnimations: 1
-  netObj: {fileID: 2209032535361837422}
 --- !u!114 &4288848699264655184
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2844,6 +2844,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c1eefe3f9883d654c8de42a3eb579ef5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &1209354568462187854
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6996942344717257674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3a8b24fe65c8b446b559e850ab51626, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
