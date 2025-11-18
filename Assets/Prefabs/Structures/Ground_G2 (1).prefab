@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7533606379201644964}
   - component: {fileID: 4946302253964004214}
   - component: {fileID: 8233846242138438413}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Ground_G2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -122,6 +122,10 @@ PrefabInstance:
     - target: {fileID: 931597213703188778, guid: abec720f7888f974b85e674736344921, type: 3}
       propertyPath: m_Name
       value: Ground_H (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 931597213703188778, guid: abec720f7888f974b85e674736344921, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 4051738483508942738, guid: abec720f7888f974b85e674736344921, type: 3}
       propertyPath: m_LocalScale.x
