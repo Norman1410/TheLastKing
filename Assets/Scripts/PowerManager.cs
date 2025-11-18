@@ -308,10 +308,10 @@ public class PowerManager : MonoBehaviour
                 var pmLevitate = player.GetComponent<FirstPersonController>();
                 if (pmLevitate != null)
                 {
-                    float originalGravityMultiplier = pmLevitate.gravityMultiplier;
-                    pmLevitate.gravityMultiplier = 0.1f; 
+                    float originalGravityMultiplier = pmLevitate.gravity;
+                    pmLevitate.gravity = 0.1f; 
                     yield return new WaitForSeconds(duration);
-                    pmLevitate.gravityMultiplier = originalGravityMultiplier;
+                    pmLevitate.gravity = originalGravityMultiplier;
                 }
                 break;
         }

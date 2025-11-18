@@ -85,6 +85,7 @@ public class SpawnAllocator : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         if (!IsServer) return;
+
         Debug.Log("[SpawnAllocator] OnNetworkDespawn en SERVER, removiendo callbacks.");
         NetworkManager.OnClientConnectedCallback -= OnClientConnected;
         NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
