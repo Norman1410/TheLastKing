@@ -14312,6 +14312,7 @@ GameObject:
   - component: {fileID: 1849272021}
   - component: {fileID: 1849272022}
   - component: {fileID: 1849272020}
+  - component: {fileID: 1849272023}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -14374,6 +14375,19 @@ MonoBehaviour:
   AutoObjectParentSync: 1
   SyncOwnerTransformWhenParented: 1
   AllowOwnerToParent: 0
+--- !u!114 &1849272023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1849272019}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27b5815fe7b57ad42bd3e0e8a013d152, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &1864833794
 GameObject:
   m_ObjectHideFlags: 0

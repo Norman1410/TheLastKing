@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(CharacterController))]
-public class FirstPersonController : MonoBehaviour
+public class FirstPersonController : Unity.Netcode.NetworkBehaviour
 {
     [Header("Movement Settings")]
     [SerializeField] public float walkSpeed = 5f;
@@ -36,7 +36,6 @@ public class FirstPersonController : MonoBehaviour
     private PlayerInputActions inputActions;
     // Animator/network
     //private PlayerAnimatorSync animatorSync;
-    private NetworkObject netObj;
     
     
     // Movement variables
@@ -56,13 +55,10 @@ public class FirstPersonController : MonoBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-
-        // Asegurar referencia al NetworkObject
-        if (netObj == null)
-            netObj = GetComponent<NetworkObject>();
+        // Note: Network ownership and input subscription are handled in OnNetworkSpawn/OnNetworkDespawn.
 
         // Si estamos usando Netcode y hay un Animator, añadir NetworkAnimator para sincronizar parámetros
-        if (netObj != null && animator != null)
+        if (Unity.Netcode.NetworkManager.Singleton != null && animator != null)
         {
             var netAnim = GetComponent<Unity.Netcode.Components.NetworkAnimator>();
             if (netAnim == null)
@@ -107,53 +103,75 @@ public class FirstPersonController : MonoBehaviour
     
     private void OnEnable()
     {
-        Debug.LogWarning("[FirstPersonController]: Corriendo OnEnable");
-        // If this object is networked and this instance is NOT the owner, don't enable input or subscribe
-        if (netObj != null && !netObj.IsOwner)
+        // If not running with Netcode (single-player/editor without NetworkManager), enable inputs immediately.
+        if (Unity.Netcode.NetworkManager.Singleton == null)
         {
-            Debug.Log("[FirstPersonController]: Remote instance - input disabled");
-            return;
+            inputActions.Enable();
+            inputActions.Player.Move.performed += OnMove;
+            inputActions.Player.Move.canceled += OnMove;
+            inputActions.Player.Look.performed += OnLook;
+            inputActions.Player.Look.canceled += OnLook;
+            inputActions.Player.Jump.performed += OnJump;
+            inputActions.Player.Sprint.performed += OnSprint;
+            inputActions.Player.Sprint.canceled += OnSprint;
         }
-
-        inputActions.Enable();
-
-        Debug.LogWarning("[FirstPersonController]: Subscribing to input events");
-
-        // Subscribe...
-        inputActions.Player.Move.performed += OnMove;
-        inputActions.Player.Move.canceled += OnMove;
-
-        inputActions.Player.Look.performed += OnLook;
-        inputActions.Player.Look.canceled += OnLook;
-
-        inputActions.Player.Jump.performed += OnJump;
-
-        inputActions.Player.Sprint.performed += OnSprint;
-        inputActions.Player.Sprint.canceled += OnSprint;
+        // Otherwise, input subscription is performed in OnNetworkSpawn() when ownership is known.
     }
 
     
     private void OnDisable()
     {
-        // If this object is networked and this instance is NOT the owner, nothing to unsubscribe
-        if (netObj != null && !netObj.IsOwner) return;
+        // If single-player/no Netcode, unsubscribe here
+        if (Unity.Netcode.NetworkManager.Singleton == null)
+        {
+            inputActions.Player.Move.performed -= OnMove;
+            inputActions.Player.Move.canceled -= OnMove;
+            inputActions.Player.Look.performed -= OnLook;
+            inputActions.Player.Look.canceled -= OnLook;
+            inputActions.Player.Jump.performed -= OnJump;
+            inputActions.Player.Sprint.performed -= OnSprint;
+            inputActions.Player.Sprint.canceled -= OnSprint;
+            inputActions.Disable();
+        }
+        // Otherwise, OnNetworkDespawn handles unsubscribing.
+    }
 
-        Debug.LogWarning("[FirstPersonController]: Unsubscribing from input events");
-        
-        // Unsubscribe from input events
-        inputActions.Player.Move.performed -= OnMove;
-        inputActions.Player.Move.canceled -= OnMove;
-        
-        inputActions.Player.Look.performed -= OnLook;
-        inputActions.Player.Look.canceled -= OnLook;
-        
-        inputActions.Player.Jump.performed -= OnJump;
-        
-        inputActions.Player.Sprint.performed -= OnSprint;
-        inputActions.Player.Sprint.canceled -= OnSprint;
-        
-        // Disable input actions
-        inputActions.Disable();
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        // If this instance is the owner, enable inputs and subscribe
+        if (IsOwner)
+        {
+            inputActions.Enable();
+            inputActions.Player.Move.performed += OnMove;
+            inputActions.Player.Move.canceled += OnMove;
+            inputActions.Player.Look.performed += OnLook;
+            inputActions.Player.Look.canceled += OnLook;
+            inputActions.Player.Jump.performed += OnJump;
+            inputActions.Player.Sprint.performed += OnSprint;
+            inputActions.Player.Sprint.canceled += OnSprint;
+
+            // Hide local model for owner
+            UpdateLocalModelVisibility();
+        }
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        base.OnNetworkDespawn();
+
+        if (IsOwner)
+        {
+            inputActions.Player.Move.performed -= OnMove;
+            inputActions.Player.Move.canceled -= OnMove;
+            inputActions.Player.Look.performed -= OnLook;
+            inputActions.Player.Look.canceled -= OnLook;
+            inputActions.Player.Jump.performed -= OnJump;
+            inputActions.Player.Sprint.performed -= OnSprint;
+            inputActions.Player.Sprint.canceled -= OnSprint;
+            inputActions.Disable();
+        }
     }
     
     private void Update()
@@ -258,24 +276,40 @@ public class FirstPersonController : MonoBehaviour
     {
         if (!useAnimations || animator == null) return;
 
-        // Only the owner should control & set animator parameters. Remote instances will be driven
-        // by NetworkAnimator (if present) or by networked RPCs.
-        if (netObj != null && !netObj.IsOwner) return;
-
-        // Magnitud del movimiento (para el parámetro Speed)
+        // Calculate animation parameters from local movement state
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
-
-        // Dirección hacia adelante o atrás (para el parámetro Direction)
         float direction = moveInput.y;
 
-        // Actualizar parámetros del Animator
-        if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f); // 0 → 2
-        else animator.SetFloat("Speed", currentSpeed); // 0 → 1
-        
-        animator.SetFloat("Direction", direction);
-        animator.SetBool("IsJumping", isJumping);
-        animator.SetBool("IsRunning", isRunning);
-        animator.SetBool("IsGrounded", isGrounded);
+        // Single-player (no Netcode): just apply animator locally
+        if (Unity.Netcode.NetworkManager.Singleton == null)
+        {
+            if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f);
+            else animator.SetFloat("Speed", currentSpeed);
+
+            animator.SetFloat("Direction", direction);
+            animator.SetBool("IsJumping", isJumping);
+            animator.SetBool("IsRunning", isRunning);
+            animator.SetBool("IsGrounded", isGrounded);
+            return;
+        }
+
+        // Networked: only the owner should control & set animator parameters and send state
+        if (IsOwner)
+        {
+            if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f);
+            else animator.SetFloat("Speed", currentSpeed);
+
+            animator.SetFloat("Direction", direction);
+            animator.SetBool("IsJumping", isJumping);
+            animator.SetBool("IsRunning", isRunning);
+            animator.SetBool("IsGrounded", isGrounded);
+
+            // Send state to server to broadcast to other clients
+            if (AnimationNetworkManager.Instance != null && AnimationNetworkManager.Instance.IsSpawned)
+            {
+                AnimationNetworkManager.Instance.SubmitAnimationStateServerRpc(currentSpeed, direction, isJumping, isRunning, isGrounded);
+            }
+        }
 
         //if (animatorSync != null && netObj != null && netObj.IsOwner)
         //{
@@ -422,14 +456,33 @@ public class FirstPersonController : MonoBehaviour
     }
 
     /// <summary>
+    /// Called by the network manager when a remote player's animation state is broadcast.
+    /// This applies received animation parameters to the local Animator instance for that remote.
+    /// </summary>
+    public void ApplyRemoteAnimationState(float speed, float direction, bool isJumping, bool isRunning, bool isGrounded)
+    {
+        if (animator == null || !useAnimations) return;
+
+        // Apply exactly the state received from network
+        if (isRunning) animator.SetFloat("Speed", speed * 2f);
+        else animator.SetFloat("Speed", speed);
+
+        animator.SetFloat("Direction", direction);
+        animator.SetBool("IsJumping", isJumping);
+        animator.SetBool("IsRunning", isRunning);
+        animator.SetBool("IsGrounded", isGrounded);
+    }
+
+    /// <summary>
     /// Hides the local player's visible model meshes so the owner doesn't see their own body in first-person.
     /// This disables Renderer components on child objects, but leaves camera children untouched.
     /// </summary>
     private void UpdateLocalModelVisibility()
     {
-        if (netObj == null) return;
+        // If not networked, don't hide by default (single-player)
+        if (Unity.Netcode.NetworkManager.Singleton == null) return;
 
-        bool hide = netObj.IsOwner;
+        bool hide = IsOwner;
 
         // Disable renderers for the local owner to avoid clipping into the camera
         var renderers = GetComponentsInChildren<Renderer>(true);
