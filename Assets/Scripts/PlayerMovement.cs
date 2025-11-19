@@ -102,7 +102,7 @@ public class FirstPersonController : MonoBehaviour
         yRotation = transform.eulerAngles.y;
 
         // Ajustar visibilidad del modelo para el propietario local
-        UpdateLocalModelVisibility();
+        //UpdateLocalModelVisibility();
     }
     
     private void OnEnable()

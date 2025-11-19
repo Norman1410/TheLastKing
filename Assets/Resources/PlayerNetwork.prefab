@@ -2100,7 +2100,6 @@ GameObject:
   - component: {fileID: 4359736556019945619}
   - component: {fileID: 2362641338301163942}
   - component: {fileID: 8506941591357657812}
-  - component: {fileID: 4029281083268481230}
   m_Layer: 5
   m_Name: Character_HUD
   m_TagString: Untagged
@@ -2208,21 +2207,6 @@ MonoBehaviour:
   crownImage: {fileID: 7792707072251641581}
   crownHeldSprite: {fileID: 1658906476, guid: 7ff4771548e270a438c9f18769cf32a6, type: 3}
   crownNotHeldSprite: {fileID: -201634461, guid: bc5d030a5af829b44b2b1236b13d309a, type: 3}
---- !u!114 &4029281083268481230
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5744212897863326709}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b1a1e45557c1e9842b191173e8908eee, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  crosshairRect: {fileID: 1513389777991793166}
-  crosshairImage: {fileID: 6461680565283411932}
-  size: 20
 --- !u!1 &5838403352462201131
 GameObject:
   m_ObjectHideFlags: 0
