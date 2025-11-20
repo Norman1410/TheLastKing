@@ -12,8 +12,8 @@ public class AnimationNetworkManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Owner calls this ServerRpc to send its animation state to the server.
-    /// The server will broadcast it to all clients via a ClientRpc.
+    /// El propietario llama a este ServerRpc para enviar su estado de animación al servidor.
+    /// El servidor lo retransmitirá a todos los clientes mediante un ClientRpc.
     /// </summary>
     [ServerRpc(RequireOwnership = false)]
     public void SubmitAnimationStateServerRpc(float speed, float forward, float strafe, bool isJumping, bool isRunning, bool isGrounded, ServerRpcParams rpcParams = default)
@@ -51,7 +51,7 @@ public class AnimationNetworkManager : NetworkBehaviour
     }
 
     /// <summary>
-    /// Broadcast animation state to clients. Clients will apply it to the corresponding player instance.
+    /// Difunde el estado de animación a los clientes. Los clientes lo aplicarán a la instancia de jugador correspondiente.
     /// </summary>
     [ClientRpc]
     private void BroadcastAnimationClientRpc(ulong ownerClientId, float speed, float forward, float strafe, bool isJumping, bool isRunning, bool isGrounded, ClientRpcParams clientRpcParams = default)

@@ -319,22 +319,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             }
         }
 
-<<<<<<< HEAD
         
-=======
-        if (animatorSync != null && netObj != null && netObj.IsOwner)
-        {
-            float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
-            animatorSync.OwnerSetSpeed(speedToSend);
-            animatorSync.OwnerSetDirection(direction);
-            animatorSync.OwnerSetRunning(isRunning);
-            animatorSync.OwnerSetJumping(isJumping);
-            animatorSync.OwnerSetGrounded(isGrounded);
-        }
-
-
-        //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
->>>>>>> 2ca909a00b7031b77cbc8de741d9bec56c124da6
         //Debug.Log($"Animator Parameters -->");
         //if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
         //if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
