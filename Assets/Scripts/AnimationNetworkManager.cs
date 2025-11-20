@@ -16,7 +16,7 @@ public class AnimationNetworkManager : NetworkBehaviour
     /// The server will broadcast it to all clients via a ClientRpc.
     /// </summary>
     [ServerRpc(RequireOwnership = false)]
-    public void SubmitAnimationStateServerRpc(float speed, float direction, bool isJumping, bool isRunning, bool isGrounded, ServerRpcParams rpcParams = default)
+    public void SubmitAnimationStateServerRpc(float speed, float forward, float strafe, bool isJumping, bool isRunning, bool isGrounded, ServerRpcParams rpcParams = default)
     {
         ulong ownerClientId = rpcParams.Receive.SenderClientId;
 
@@ -46,15 +46,15 @@ public class AnimationNetworkManager : NetworkBehaviour
         }
 
         // Broadcast to all clients the animation state for this owner (server has validated the sender)
-        Debug.Log($"SubmitAnimationStateServerRpc: broadcasting animation state from client {ownerClientId} (speed={speed}, dir={direction})");
-        BroadcastAnimationClientRpc(ownerClientId, speed, direction, isJumping, isRunning, isGrounded);
+        Debug.Log($"SubmitAnimationStateServerRpc: broadcasting animation state from client {ownerClientId} (speed={speed}, forward={forward}, strafe={strafe})");
+        BroadcastAnimationClientRpc(ownerClientId, speed, forward, strafe, isJumping, isRunning, isGrounded);
     }
 
     /// <summary>
     /// Broadcast animation state to clients. Clients will apply it to the corresponding player instance.
     /// </summary>
     [ClientRpc]
-    private void BroadcastAnimationClientRpc(ulong ownerClientId, float speed, float direction, bool isJumping, bool isRunning, bool isGrounded, ClientRpcParams clientRpcParams = default)
+    private void BroadcastAnimationClientRpc(ulong ownerClientId, float speed, float forward, float strafe, bool isJumping, bool isRunning, bool isGrounded, ClientRpcParams clientRpcParams = default)
     {
         // Find the local player instance that corresponds to ownerClientId and apply parameters
         var players = GameObject.FindObjectsOfType<FirstPersonController>(true);
@@ -66,7 +66,7 @@ public class AnimationNetworkManager : NetworkBehaviour
             var netObj = p.GetComponentInParent<Unity.Netcode.NetworkObject>();
             if (netObj != null && netObj.OwnerClientId == ownerClientId)
             {
-                p.ApplyRemoteAnimationState(speed, direction, isJumping, isRunning, isGrounded);
+                p.ApplyRemoteAnimationState(speed, forward, strafe, isJumping, isRunning, isGrounded);
                 break;
             }
         }

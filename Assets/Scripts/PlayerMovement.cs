@@ -28,17 +28,19 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     [Header("Animation")]
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
+    [SerializeField] private Transform visualsRoot; // Root que contiene los meshes/visuals (asignar en el prefab)
 
     
     
-    // Components
+    // Componentes
     private CharacterController controller;
     private PlayerInputActions inputActions;
     // Animator/network
+    // Animator / red
     //private PlayerAnimatorSync animatorSync;
     
     
-    // Movement variables
+    // Variables de movimiento
     private Vector2 moveInput;
     private Vector3 velocity;
     private bool isGrounded;
@@ -47,7 +49,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     private bool wasGrounded;
     private bool isJumping;
     
-    // Camera rotation variables
+    // Variables de rotación de la cámara
     private float xRotation = 0f;
     private float yRotation = 0f;
     private Vector2 lookInput;
@@ -55,7 +57,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
-        // Note: Network ownership and input subscription are handled in OnNetworkSpawn/OnNetworkDespawn.
+        // Nota: la propiedad de red y la suscripción a entradas se gestionan en OnNetworkSpawn/OnNetworkDespawn.
 
         // Si estamos usando Netcode y hay un Animator, añadir NetworkAnimator para sincronizar parámetros
         if (Unity.Netcode.NetworkManager.Singleton != null && animator != null)
@@ -64,14 +66,14 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             if (netAnim == null)
                 netAnim = gameObject.AddComponent<Unity.Netcode.Components.NetworkAnimator>();
 
-            // Ensure the NetworkAnimator points to the correct Animator (useful if Animator is on a child)
+            // Asegurar que el NetworkAnimator apunta al Animator correcto (útil si el Animator está en un hijo)
             if (netAnim != null && netAnim.Animator == null)
             {
                 netAnim.Animator = animator;
             }
         }
 
-        // Get components
+        // Obtener componentes
         controller = GetComponent<CharacterController>();
         
         // Si no se asignó un animator, intentar encontrarlo
@@ -87,10 +89,10 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             Debug.Log("Animator assigned via inspector.");
         }
         
-        // Create and setup input actions
+        // Crear y configurar las acciones de entrada
         inputActions = new PlayerInputActions();
         
-        // Lock cursor to center of screen
+        // Bloquear el cursor en el centro de la pantalla
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
@@ -103,7 +105,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     
     private void OnEnable()
     {
-        // If not running with Netcode (single-player/editor without NetworkManager), enable inputs immediately.
+        // Si no se ejecuta con Netcode (modo single-player/Editor sin NetworkManager), habilitar entradas inmediatamente.
         if (Unity.Netcode.NetworkManager.Singleton == null)
         {
             inputActions.Enable();
@@ -115,13 +117,13 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             inputActions.Player.Sprint.performed += OnSprint;
             inputActions.Player.Sprint.canceled += OnSprint;
         }
-        // Otherwise, input subscription is performed in OnNetworkSpawn() when ownership is known.
+        // En caso contrario, la suscripción de entradas se realiza en OnNetworkSpawn() cuando se conozca la propiedad.
     }
 
     
     private void OnDisable()
     {
-        // If single-player/no Netcode, unsubscribe here
+        // Si es single-player o no hay Netcode, anular suscripción aquí
         if (Unity.Netcode.NetworkManager.Singleton == null)
         {
             inputActions.Player.Move.performed -= OnMove;
@@ -133,14 +135,14 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             inputActions.Player.Sprint.canceled -= OnSprint;
             inputActions.Disable();
         }
-        // Otherwise, OnNetworkDespawn handles unsubscribing.
+        // De lo contrario, OnNetworkDespawn se encarga de anular la suscripción.
     }
 
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
 
-        // If this instance is the owner, enable inputs and subscribe
+        // Si esta instancia es la propietaria, habilitar entradas y suscribirse
         if (IsOwner)
         {
             inputActions.Enable();
@@ -152,9 +154,10 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             inputActions.Player.Sprint.performed += OnSprint;
             inputActions.Player.Sprint.canceled += OnSprint;
 
-            // Hide local model for owner
-            UpdateLocalModelVisibility();
         }
+
+        // Aplicar el estado de visibilidad para esta instancia (el propietario se oculta a sí mismo, los demás lo ven)
+        UpdateLocalModelVisibility();
     }
 
     public override void OnNetworkDespawn()
@@ -176,22 +179,22 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     
     private void Update()
     {
-        // Perform ground check
+        // Realizar comprobación de suelo
         CheckGround();
         
-        // Handle movement
+        // Gestionar movimiento
         HandleMovement();
         
-        // Handle camera rotation
+        // Gestionar la rotación de la cámara
         HandleMouseLook();
         
-        // Update animations
+        // Actualizar animaciones
         UpdateAnimations();
     }
     
     private void CheckGround()
     {
-        // Check if we're grounded using a sphere cast
+        // Comprobar si estamos en el suelo usando una esfera
         if (groundCheck != null)
         {
             isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
@@ -202,7 +205,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             isGrounded = Physics.Raycast(transform.position, Vector3.down, controller.bounds.extents.y + 0.1f, groundMask);
         }
         
-        // Debug para ver el estado del ground check
+        // Depuración para ver el estado de la comprobación de suelo
         if (isGrounded != wasGrounded)
         {
             Debug.Log($"Ground State Changed: {isGrounded}");
@@ -215,7 +218,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             }
         }
         
-        // Reset falling velocity when grounded
+        // Reiniciar la velocidad de caída cuando estemos en el suelo
         if (isGrounded && velocity.y < 0)
         {
             velocity.y = -2f; // Small negative value to keep grounded
@@ -249,19 +252,19 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     
     private void HandleMouseLook()
     {
-        // Calculate rotation based on mouse input
+        // Calcular la rotación a partir de la entrada del ratón
         float mouseX = lookInput.x * mouseSensitivity;
         float mouseY = lookInput.y * mouseSensitivity;
         
-        // Rotate player body on Y axis (horizontal rotation)
+        // Rotar el cuerpo del jugador en el eje Y (rotación horizontal)
         yRotation += mouseX;
         transform.rotation = Quaternion.Euler(0f, yRotation, 0f);
         
-        // Rotate camera on X axis (vertical rotation)
+        // Rotar la cámara en el eje X (rotación vertical)
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -maxLookAngle, maxLookAngle);
         
-        // Apply camera rotation
+        // Aplicar la rotación de la cámara
         if (playerCamera != null)
         {
             playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
@@ -276,53 +279,47 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     {
         if (!useAnimations || animator == null) return;
 
-        // Calculate animation parameters from local movement state
+        // Calcular los parámetros de animación a partir del estado de movimiento local
         float currentSpeed = new Vector2(moveInput.x, moveInput.y).magnitude;
-        float direction = moveInput.y;
+        float forward = moveInput.y;
+        float strafe = moveInput.x;
 
-        // Single-player (no Netcode): just apply animator locally
-        if (Unity.Netcode.NetworkManager.Singleton == null)
-        {
-            if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f);
-            else animator.SetFloat("Speed", currentSpeed);
+        Debug.Log($"Speed: {currentSpeed}, Forward: {forward}, Strafe: {strafe}"); // Está actualizando bien los parámetros
 
-            animator.SetFloat("Direction", direction);
-            animator.SetBool("IsJumping", isJumping);
-            animator.SetBool("IsRunning", isRunning);
-            animator.SetBool("IsGrounded", isGrounded);
-            return;
-        }
+        // Single-player (sin Netcode): aplicar los parámetros al animator localmente
+        //if (Unity.Netcode.NetworkManager.Singleton == null)
+        //{
+        //    if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f);
+        //    else animator.SetFloat("Speed", currentSpeed);
+//
+        //    animator.SetFloat("Direction", direction);
+        //    animator.SetBool("IsJumping", isJumping);
+        //    animator.SetBool("IsRunning", isRunning);
+        //    animator.SetBool("IsGrounded", isGrounded);
+        //    return;
+        //}
 
-        // Networked: only the owner should control & set animator parameters and send state
+        // En red: sólo el propietario debe controlar y establecer los parámetros del animator y enviar el estado
         if (IsOwner)
         {
             if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f);
             else animator.SetFloat("Speed", currentSpeed);
 
-            animator.SetFloat("Direction", direction);
+            // Forward/backward and left/right strafing parameters
+            animator.SetFloat("Direction", forward);
+            animator.SetFloat("Strafe", strafe);
             animator.SetBool("IsJumping", isJumping);
             animator.SetBool("IsRunning", isRunning);
             animator.SetBool("IsGrounded", isGrounded);
 
-            // Send state to server to broadcast to other clients
+            // Enviar el estado al servidor para que lo difunda a otros clientes
             if (AnimationNetworkManager.Instance != null && AnimationNetworkManager.Instance.IsSpawned)
             {
-                AnimationNetworkManager.Instance.SubmitAnimationStateServerRpc(currentSpeed, direction, isJumping, isRunning, isGrounded);
+                AnimationNetworkManager.Instance.SubmitAnimationStateServerRpc(currentSpeed, forward, strafe, isJumping, isRunning, isGrounded);
             }
         }
 
-        //if (animatorSync != null && netObj != null && netObj.IsOwner)
-        //{
-        //    float speedToSend = isRunning ? currentSpeed * 2f : currentSpeed;
-        //    animatorSync.OwnerSetSpeed(speedToSend);
-        //    animatorSync.OwnerSetDirection(direction);
-        //    animatorSync.OwnerSetRunning(isRunning);
-        //    animatorSync.OwnerSetJumping(isJumping);
-        //    animatorSync.OwnerSetGrounded(isGrounded);
-        //}
-
-
-        //Debug.Log($"Speed: {currentSpeed}, Direction: {direction}"); //Está actualizando bien los parámetros
+        
         //Debug.Log($"Animator Parameters -->");
         //if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
         //if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
@@ -333,7 +330,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
 
 
     
-    // Input callback methods
+    // Métodos de callback de entrada
     private void OnMove(InputAction.CallbackContext context)
     {
         moveInput = context.ReadValue<Vector2>();
@@ -350,7 +347,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         
         if (isGrounded && !isJumping)
         {
-            // Calculate jump velocity using physics formula: v = sqrt(h * -2 * g)
+            // Calcular la velocidad de salto usando la fórmula física: v = sqrt(h * -2 * g)
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             isJumping = true;
             UpdateAnimations(); // Actualizar animaciones inmediatamente
@@ -363,7 +360,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         isRunning = context.performed;
     }
     
-    // Debug visualization
+    // Visualización de depuración
     private void OnDrawGizmosSelected()
     {
         // Visualizar el GroundCheck
@@ -392,7 +389,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         }
     }
 
-    // Método público para permitir/bloquear el movimiento del mouse (útil para menús)
+    // Método público para permitir/bloquear el movimiento del ratón (útil para menús)
     public void SetCursorLock(bool locked)
     {
         Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
@@ -456,10 +453,10 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     }
 
     /// <summary>
-    /// Called by the network manager when a remote player's animation state is broadcast.
-    /// This applies received animation parameters to the local Animator instance for that remote.
+    /// Llamado por el gestor de red cuando se difunde el estado de animación de un jugador remoto.
+    /// Aplica los parámetros de animación recibidos al Animator local de ese jugador remoto.
     /// </summary>
-    public void ApplyRemoteAnimationState(float speed, float direction, bool isJumping, bool isRunning, bool isGrounded)
+    public void ApplyRemoteAnimationState(float speed, float forward, float strafe, bool isJumping, bool isRunning, bool isGrounded)
     {
         if (animator == null || !useAnimations) return;
 
@@ -467,15 +464,17 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         if (isRunning) animator.SetFloat("Speed", speed * 2f);
         else animator.SetFloat("Speed", speed);
 
-        animator.SetFloat("Direction", direction);
+        // Forward/backward and left/right strafing parameters
+        animator.SetFloat("Direction", forward);
+        animator.SetFloat("Strafe", strafe);
         animator.SetBool("IsJumping", isJumping);
         animator.SetBool("IsRunning", isRunning);
         animator.SetBool("IsGrounded", isGrounded);
     }
 
     /// <summary>
-    /// Hides the local player's visible model meshes so the owner doesn't see their own body in first-person.
-    /// This disables Renderer components on child objects, but leaves camera children untouched.
+    /// Oculta los meshes visibles del modelo del jugador local para que el propietario no vea su propio cuerpo en primera persona.
+    /// Esto desactiva los componentes Renderer en objetos hijo, pero deja intactos los hijos de la cámara.
     /// </summary>
     private void UpdateLocalModelVisibility()
     {
@@ -484,21 +483,22 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
 
         bool hide = IsOwner;
 
+        // Target a specific visuals root if provided; otherwise operate on this transform
+        var targetRoot = visualsRoot != null ? visualsRoot : transform;
+
         // Disable renderers for the local owner to avoid clipping into the camera
-        var renderers = GetComponentsInChildren<Renderer>(true);
+        var renderers = targetRoot.GetComponentsInChildren<Renderer>(true);
         foreach (var r in renderers)
         {
             // Skip renderers that are part of the player camera hierarchy
             if (playerCamera != null && r.transform.IsChildOf(playerCamera.transform))
                 continue;
 
-            // (skip CanvasRenderers separately below)
-
             r.enabled = !hide;
         }
 
-        // Additionally, toggle CanvasRenderer gameObjects if present (rare on model hierarchy)
-        var canvasRenderers = GetComponentsInChildren<CanvasRenderer>(true);
+        // Additionally, toggle CanvasRenderer gameObjects if present under the visuals root
+        var canvasRenderers = targetRoot.GetComponentsInChildren<CanvasRenderer>(true);
         foreach (var cr in canvasRenderers)
             cr.gameObject.SetActive(!hide);
     }
