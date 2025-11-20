@@ -286,19 +286,6 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
 
         Debug.Log($"Speed: {currentSpeed}, Forward: {forward}, Strafe: {strafe}"); // Está actualizando bien los parámetros
 
-        // Single-player (sin Netcode): aplicar los parámetros al animator localmente
-        //if (Unity.Netcode.NetworkManager.Singleton == null)
-        //{
-        //    if (isRunning) animator.SetFloat("Speed", currentSpeed * 2f);
-        //    else animator.SetFloat("Speed", currentSpeed);
-//
-        //    animator.SetFloat("Direction", direction);
-        //    animator.SetBool("IsJumping", isJumping);
-        //    animator.SetBool("IsRunning", isRunning);
-        //    animator.SetBool("IsGrounded", isGrounded);
-        //    return;
-        //}
-
         // En red: sólo el propietario debe controlar y establecer los parámetros del animator y enviar el estado
         if (IsOwner)
         {
@@ -318,7 +305,6 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
                 AnimationNetworkManager.Instance.SubmitAnimationStateServerRpc(currentSpeed, forward, strafe, isJumping, isRunning, isGrounded);
             }
         }
-
         
         //Debug.Log($"Animator Parameters -->");
         //if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
@@ -396,15 +382,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         Cursor.visible = !locked;
     }
 
-    void OnGUI()
-    {
-        // ESQUINA INFERIOR IZQUIERDA
-        GUILayout.BeginArea(new Rect(10, Screen.height - 110, 300, 100));
 
-        GUILayout.Label($"isWalking: {isMoving}");
-        
-        GUILayout.EndArea();
-    }
     
     // Métodos públicos para obtener el estado (útiles para otros scripts)
     public bool IsGrounded() => isGrounded;
