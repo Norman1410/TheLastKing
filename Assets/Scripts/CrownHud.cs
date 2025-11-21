@@ -3,7 +3,7 @@ using UnityEngine.UI;
 using Unity.Netcode;
 
 /// <summary>
-/// Actualiza la imagen del HUD mostrando si el jugador local tiene o no tiene la corona.
+/// Actualiza la imagen del HUD mostrando si el jugador local tiene o no tiene la corona
 /// Se suscribe al evento OnCrownStatusChanged del PlayerRob local (IsOwner).
 /// </summary>
 public class CrownHud : MonoBehaviour
