@@ -101,18 +101,40 @@ public class PlayerNicknameDisplay : MonoBehaviour
             {
                 display = v.ToString();
                 nicknameText.text = display;
-                // debug
-                Debug.Log($"[PlayerNicknameDisplay] Using networked DisplayName='{display}' on {gameObject.name} (OwnerId={(_netObj!=null?_netObj.OwnerClientId:0)})");
+                Debug.Log($"[PlayerNicknameDisplay] Usando DisplayName en red='{display}' en {gameObject.name} (OwnerId={(_netObj!=null?_netObj.OwnerClientId:0)})");
                 return;
             }
         }
 
         // Next preferred source: LanLobbyState (server-synced)
-        ulong ownerId = NetworkManager.Singleton != null ? NetworkManager.Singleton.LocalClientId : 0;
-        if (_netObj != null) ownerId = _netObj.OwnerClientId;
+        // Determinar ownerId de forma robusta. Evitar usar LocalClientId por defecto porque
+        // si _netObj es null podríamos mostrar el nombre local para todos los objetos.
+        ulong ownerId = ulong.MaxValue; // invalid sentinel
+
+        if (_netObj != null)
+        {
+            ownerId = _netObj.OwnerClientId;
+        }
+        else
+        {
+            // Intentar encontrar un NetworkObject relacionado (padre/ancestro/descendiente) como fallback
+            var all = UnityEngine.Object.FindObjectsByType<NetworkObject>(FindObjectsSortMode.None);
+            foreach (var no in all)
+            {
+                if (no == null) continue;
+                // Si este transform es hijo del NetworkObject o viceversa, considerarlo relacionado
+                if (transform.IsChildOf(no.transform) || no.transform.IsChildOf(transform))
+                {
+                    ownerId = no.OwnerClientId;
+                    _netObj = no; // cachearlo para futuras actualizaciones
+                    _netName = no.GetComponent<PlayerNetworkDisplayName>() ?? _netName;
+                    break;
+                }
+            }
+        }
 
         var st = LanLobbyState.Instance;
-        if (st != null && st.Players != null)
+        if (st != null && st.Players != null && ownerId != ulong.MaxValue)
         {
             for (int i = 0; i < st.Players.Count; i++)
             {
@@ -126,8 +148,8 @@ public class PlayerNicknameDisplay : MonoBehaviour
 
         nicknameText.text = display;
 
-        // debug info: what ownerId we used and what display was chosen
-        Debug.Log($"[PlayerNicknameDisplay] Updated nicknameText on {gameObject.name}: ownerId={ownerId}, display='{display}', hasNetObj={_netObj!=null}");
+        // debug info: qué ownerId se usó y qué display fue elegido
+        Debug.Log($"[PlayerNicknameDisplay] nickname actualizado en {gameObject.name}: ownerId={(ownerId==ulong.MaxValue? -1: (long)ownerId)}, display='{display}', hasNetObj={_netObj!=null}");
     }
 
     TMP_Text FindNickTextInChildren()
