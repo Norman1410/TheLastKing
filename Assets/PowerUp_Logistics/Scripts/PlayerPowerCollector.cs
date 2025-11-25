@@ -1,23 +1,37 @@
 using UnityEngine;
+using Unity.Netcode;   // 👈 IMPORTANTE
 
 public class PlayerPowerCollector : MonoBehaviour
 {
+    private NetworkObject netObj;
+
+    private void Awake()
+    {
+        // Buscamos el NetworkObject del jugador dueño de este colector
+        netObj = GetComponentInParent<NetworkObject>();
+
+        if (netObj == null)
+        {
+            Debug.LogWarning("[PlayerPowerCollector] No se encontró NetworkObject en los padres.");
+        }
+    }
+
     private void OnTriggerEnter(Collider other)
     {
+        // 🔒 Solo el jugador LOCAL en este cliente puede recoger poderes
+        if (netObj != null && !netObj.IsOwner)
+            return;
+
         // Intenta obtener la clase base de tu poder (la que tiene el método Activate)
         PowerUp power = other.GetComponent<PowerUp>();
 
         if (power != null)
         {
-            // 1. Verifica si hay un PowerManager activo
+            // Verifica si hay un PowerManager activo (del jugador local)
             if (PowerManager.Instance != null)
             {
-                // 2. Llama al método Activate de tu script de poder (ej. SuperJump).
-                // Es aquí donde el SuperJump llama al PowerManager.AddPower().
+                // Aquí el SuperJump (y otros) llaman a PowerManager.AddPower()
                 power.Activate(this.gameObject);
-                
-                // NOTA IMPORTANTE: El script de poder (SuperJump) es responsable de DESTRUIRSE a sí mismo 
-                // si PowerManager.AddPower() devuelve true.
             }
             else
             {

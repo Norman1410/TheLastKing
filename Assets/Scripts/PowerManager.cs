@@ -1,11 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Unity.Netcode;
 
 public class PowerManager : MonoBehaviour
 {
     // Singleton instance for easy access from PowerUp pickups
     public static PowerManager Instance { get; private set; }
-
+    private NetworkObject netObj;   // 👈 NUEVA LÍNEA
     private PowerType?[] powerTypeSlots = new PowerType?[2]; // stores which PowerType is in each slot
     [Header("HUD Power Slots")]
     public PowersHUD powersHUD; // Reference to the HUD helper component
@@ -28,28 +29,50 @@ public class PowerManager : MonoBehaviour
     public float powerCooldownDuration = 1f; // Cooldown global para evitar spam de R.
     private float nextPowerUseTime = 0f;     // Tiempo en el que se puede volver a usar un poder.
     private bool isPowerEffectActive = false; // Bandera para saber si un efecto de poder está en curso.
-    
+
     private bool[] powerSlots = new bool[2]; // Array to track which slots are occupied
     // Simple dedupe: remember recently picked prefab instance IDs to avoid double-processing
     private System.Collections.Generic.Dictionary<int, float> recentlyPicked = new System.Collections.Generic.Dictionary<int, float>();
     private float dedupeWindow = 1.0f; // seconds within which repeats are ignored
-    
+
+    // Este PowerManager solo debe estar activo en el jugador LOCAL de cada máquina
+    private void Awake()
+    {
+        // Buscamos el NetworkObject del jugador dueño de este PowerManager
+        netObj = GetComponentInParent<NetworkObject>();
+    }
+
     private void Start()
     {
-        // Initialize singleton
-        if (Instance != null && Instance != this)
+        // Este PowerManager solo debe vivir en el jugador LOCAL de este cliente.
+        if (netObj != null && !netObj.IsOwner)
         {
-            Destroy(gameObject);
+            // Si por alguna razón este era el Instance, lo limpiamos
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+
+            // Desactivamos este componente para que no interfiera
+            enabled = false;
             return;
         }
+
+        // A partir de aquí, este es el PowerManager del jugador local
+        if (Instance != null && Instance != this)
+        {
+            // Por seguridad, destruimos el anterior (no debería pasar, pero por si acaso)
+            Destroy(Instance.gameObject);
+        }
+
         Instance = this;
 
-        // At start, clear all power slots
+        // Al inicio, limpiamos todos los slots de poderes
         ClearAllPowerSlots();
 
-        // No auto-collector: player pickup forwarding is handled externally or by adding PlayerPowerCollector manually.
+        // El pickup de poderes se hace desde PlayerPowerCollector en el mismo jugador.
     }
-    
+
     private void Update()
     {
         // Detect if configured key is pressed to use power
@@ -58,7 +81,8 @@ public class PowerManager : MonoBehaviour
             UsePower();
         }
     }
-    
+
+
     // Method to add a power to the HUD
     // Adds a power to the first available slot. Returns true on success.
     // Adds a power to the HUD. powerType can be null: if so we try to infer it from pickedPrefab (mapping or component).
@@ -125,24 +149,24 @@ public class PowerManager : MonoBehaviour
                 if (powerIcon == null) powerIcon = GetPowerIcon(powerType, pickedPrefab);
 
                 powerTypeSlots[i] = powerType;
-                
+
                 // Assign the icon to the corresponding slot
                 // Update HUD via helper
                 if (powersHUD != null)
                 {
                     powersHUD.SetSlotSprite(i, powerIcon);
                 }
-                
+
                 Debug.Log($"Power {powerType} added to slot {i + 1}");
                 return true; // Exit method once power is added
             }
         }
-        
+
         // If we reach here, no slots are available
         Debug.Log("No available slots for more powers!");
         return false;
     }
-    
+
     // Method to get the power icon based on its type
     private Sprite GetPowerIcon(PowerType powerType, GameObject pickedPrefab = null)
     {
@@ -178,7 +202,7 @@ public class PowerManager : MonoBehaviour
         if (!powerType.HasValue) return null;
         return GetPowerIcon(powerType.Value, pickedPrefab);
     }
-    
+
     // Método para limpiar todos los slots (opcional, para testing)
     public void ClearAllPowerSlots()
     {
@@ -187,14 +211,14 @@ public class PowerManager : MonoBehaviour
             powerSlots[i] = false;
             powerTypeSlots[i] = null;
         }
-        
+
         if (powersHUD != null)
         {
             powersHUD.SetSlotSprite(0, null);
             powersHUD.SetSlotSprite(1, null);
         }
     }
-    
+
     // Method to use power from slot 1 (with R key)
     // Método para usar poder desde el slot 1 (con tecla R)
     public void UsePower()
@@ -203,16 +227,16 @@ public class PowerManager : MonoBehaviour
         if (isPowerEffectActive)
         {
             Debug.Log("No puedes usar otro poder hasta que el efecto actual termine.");
-            return; 
+            return;
         }
-        
+
         // 2. Verificar el cooldown global
         if (Time.time < nextPowerUseTime)
         {
             Debug.Log($"Poder en cooldown. Espera {(nextPowerUseTime - Time.time):F1} segundos.");
-            return; 
+            return;
         }
-        
+
         // Check if there's any power in slot 1
         if (powerSlots[0]) // If slot 1 has a power
         {
@@ -220,12 +244,12 @@ public class PowerManager : MonoBehaviour
             if (type.HasValue)
             {
                 // Establecer la bandera de efecto activo ANTES de iniciar la corrutina
-                isPowerEffectActive = true; 
-                
+                isPowerEffectActive = true;
+
                 Debug.Log($"Using power {type.Value}");
                 // Inicia la corrutina y le pasamos el tiempo de duración
                 StartCoroutine(HandlePowerEffect(type.Value));
-                
+
                 // Establecer el cooldown global (se puede ajustar en el Inspector)
                 nextPowerUseTime = Time.time + powerCooldownDuration;
             }
@@ -252,30 +276,30 @@ public class PowerManager : MonoBehaviour
 
         // El tiempo de duración del efecto es el que queremos esperar antes de poder usar el siguiente.
         float duration = 0f;
-        
+
         switch (type)
         {
             case PowerType.Boost:
                 duration = 5f;
-                var pm = player.GetComponent<FirstPersonController>(); 
+                var pm = player.GetComponent<FirstPersonController>();
                 if (pm != null)
                 {
-                    
+
                     float originalWalkSpeed = pm.walkSpeed;
                     float originalRunSpeed = pm.runSpeed;
-                    
+
                     // Aumentar la velocidad
                     pm.walkSpeed *= 3f;
-                    pm.runSpeed *= 3f; 
-                    
+                    pm.runSpeed *= 3f;
+
                     yield return new WaitForSeconds(duration);
-                    
+
                     // Revertir
                     pm.walkSpeed = originalWalkSpeed;
                     pm.runSpeed = originalRunSpeed;
                 }
                 break;
-                
+
             case PowerType.JumpHigh:
                 duration = 5f;
                 var pc = player.GetComponent<FirstPersonController>();
@@ -283,7 +307,7 @@ public class PowerManager : MonoBehaviour
                 {
                     float origJ = pc.jumpHeight;
                     pc.jumpHeight *= 4f;
-                    
+
                     yield return new WaitForSeconds(duration);
                     pc.jumpHeight = origJ;
                 }
@@ -304,12 +328,12 @@ public class PowerManager : MonoBehaviour
                 player.transform.localScale = origScale;
                 break;
             case PowerType.Levitate:
-                duration = 6f; 
+                duration = 6f;
                 var pmLevitate = player.GetComponent<FirstPersonController>();
                 if (pmLevitate != null)
                 {
                     float originalGravityMultiplier = pmLevitate.gravityMultiplier;
-                    pmLevitate.gravityMultiplier = 0.1f; 
+                    pmLevitate.gravityMultiplier = 0.1f;
                     yield return new WaitForSeconds(duration);
                     pmLevitate.gravityMultiplier = originalGravityMultiplier;
                 }
@@ -324,7 +348,7 @@ public class PowerManager : MonoBehaviour
 
         yield break;
     }
-    
+
     // Method to shift powers to the left
     private void ShiftPowersLeft()
     {
@@ -355,7 +379,7 @@ public class PowerManager : MonoBehaviour
             powerSlots[0] = false;
         }
     }
-    
+
     // Method to check if there are available slots
     public bool HasAvailableSlot()
     {
