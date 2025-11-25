@@ -566,7 +566,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -30}
+  m_AnchoredPosition: {x: 0, y: -29.999939}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &633449007
@@ -1024,6 +1024,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea13f994ee3440d4e9b259f62fc4f6a4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  lobbySceneName: LobbyNet
 --- !u!4 &1588648763
 Transform:
   m_ObjectHideFlags: 0
