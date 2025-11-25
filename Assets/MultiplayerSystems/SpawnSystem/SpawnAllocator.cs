@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Netcode;
+using UnityEngine.SceneManagement; // <--- NUEVO
 
 public class SpawnAllocator : NetworkBehaviour
 {
@@ -14,15 +15,51 @@ public class SpawnAllocator : NetworkBehaviour
     [Tooltip("Si no hay puntos libres, usa el índice 0 como fallback.")]
     public bool fallbackToZero = true;
 
+    // =========================
+    //  AWAKE + manejo de escenas
+    // =========================
     private void Awake()
     {
-        _spawns = FindAnyObjectByType<NetworkSpawnPoints>();
-        if (_spawns == null)
-            Debug.LogError("SpawnAllocator: No hay un NetworkSpawnPoints en la escena.");
-        else
-            Debug.Log($"[SpawnAllocator] Encontrado NetworkSpawnPoints con {_spawns.Count} puntos.");
+        Debug.Log($"[SpawnAllocator] Awake en escena '{SceneManager.GetActiveScene().name}'");
+
+        FindSpawnPoints();
+
+        // Por si este mismo GO vive entre escenas (DontDestroyOnLoad)
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (!IsServer) return;
+
+        Debug.Log($"[SpawnAllocator] Escena cargada: {scene.name}, recargando spawn points...");
+        FindSpawnPoints();
+    }
+
+    private void FindSpawnPoints()
+    {
+        // Si hubiera más de uno, FindAnyObjectByType agarra uno cualquiera,
+        // pero nos interesa ver QUIÉN fue para depurar.
+        _spawns = FindAnyObjectByType<NetworkSpawnPoints>();
+
+        if (_spawns == null)
+        {
+            Debug.LogError("[SpawnAllocator] NO se encontró NetworkSpawnPoints en la escena actual.");
+        }
+        else
+        {
+            Debug.Log($"[SpawnAllocator] Encontrado NetworkSpawnPoints en escena '{_spawns.gameObject.scene.name}' con {_spawns.Count} puntos.");
+        }
+    }
+
+    // =========================
+    //  Netcode lifecycle
+    // =========================
     public override void OnNetworkSpawn()
     {
         if (!IsServer) return;
@@ -43,11 +80,15 @@ public class SpawnAllocator : NetworkBehaviour
     public override void OnNetworkDespawn()
     {
         if (!IsServer) return;
+
         Debug.Log("[SpawnAllocator] OnNetworkDespawn en SERVER, removiendo callbacks.");
         NetworkManager.OnClientConnectedCallback -= OnClientConnected;
         NetworkManager.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
+    // =========================
+    //  Callbacks de clientes
+    // =========================
     private void OnClientConnected(ulong clientId)
     {
         Debug.Log($"[SpawnAllocator] OnClientConnected para {clientId}");
@@ -66,6 +107,9 @@ public class SpawnAllocator : NetworkBehaviour
         }
     }
 
+    // =========================
+    //  Asignación de spawn
+    // =========================
     private void EnsureSpawn(ulong clientId)
     {
         if (_spawns == null || _spawns.Count == 0)
@@ -110,7 +154,7 @@ public class SpawnAllocator : NetworkBehaviour
             timeout -= Time.deltaTime;
             yield return null;
         }
-        Debug.LogWarning($"SpawnAllocator: Timeout esperando PlayerObject de {clientId}");
+        Debug.LogWarning($"[SpawnAllocator] Timeout esperando PlayerObject de {clientId}");
     }
 
     private void AssignToPlayer(ulong clientId, NetworkObject playerObj)
@@ -164,9 +208,20 @@ public class SpawnAllocator : NetworkBehaviour
     {
         var go = playerObj.gameObject;
 
-        Debug.Log($"[SpawnAllocator] Teleportando {go.name} a {pos}");
+        Debug.Log($"[SpawnAllocator] Teleportando {go.name} a {pos} (intentando via PlayerSpawnHandler)");
 
-        // Si hay CharacterController, desactiva/activa para evitar bloqueos al mover
+        // Intentar usar el handler del jugador (RPC hacia el dueño)
+        var handler = go.GetComponent<PlayerSpawnHandler>();
+        if (handler != null)
+        {
+            Debug.Log($"[SpawnAllocator] Encontrado PlayerSpawnHandler en {go.name}. Llamando TeleportClientRpc...");
+            handler.TeleportClientRpc(pos, rot);
+            return;
+        }
+
+        Debug.LogWarning($"[SpawnAllocator] NO hay PlayerSpawnHandler en {go.name}. Usando fallback en servidor.");
+
+        // Fallback por si algún día el prefab no tiene PlayerSpawnHandler
         var cc = go.GetComponent<CharacterController>();
         if (cc != null)
         {
@@ -178,6 +233,9 @@ public class SpawnAllocator : NetworkBehaviour
         {
             go.transform.SetPositionAndRotation(pos, rot);
         }
-        // El server establece la pose; con ClientNetworkTransform se replica.
+
+        Debug.Log($"[SpawnAllocator] Fallback: {go.name} colocado en {go.transform.position} desde el servidor.");
     }
+
+
 }
