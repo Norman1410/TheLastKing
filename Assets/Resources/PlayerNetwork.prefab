@@ -637,6 +637,37 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &1755094719188412339
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3840865647494407878}
+  m_Layer: 3
+  m_Name: PlayerPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3840865647494407878
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1755094719188412339}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3020579608923997534}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1855631062532366915
 GameObject:
   m_ObjectHideFlags: 0
@@ -689,12 +720,7 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage: "\nBinding warning: Some generic clip(s) animate transforms that
-    are already bound by a Humanoid avatar. These transforms can only be changed
-    by Humanoid clips.\n\tTransform 'Spine1'\n\tTransform 'Neck'\n\tTransform 'RightLeg'\n\tTransform
-    'Left_UpLeg'\n\tTransform 'RightArm'\n\tTransform 'Spine2'\n\tTransform 'RightShoulder'\n\tTransform
-    'Left_Leg'\n\tTransform 'Spine'\n\tTransform 'Left_Hand'\n\tand more ...\n\tFrom
-    animation clip 'Walk Strafe Left'"
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
@@ -2222,6 +2248,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 4617761677609916534}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &5982852972677824151
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1350641528763209515}
+  m_Layer: 3
+  m_Name: SpectatorPivot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1350641528763209515
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5982852972677824151}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 10, z: -3}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3020579608923997534}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &6072609176439288695
 GameObject:
   m_ObjectHideFlags: 0
@@ -2696,6 +2753,8 @@ GameObject:
   - component: {fileID: 1209354568462187854}
   - component: {fileID: 8205682405370445326}
   - component: {fileID: 791473160293680714}
+  - component: {fileID: 2445913531024291430}
+  - component: {fileID: 7714846785721943236}
   m_Layer: 3
   m_Name: PlayerNetwork
   m_TagString: Player
@@ -2722,6 +2781,8 @@ Transform:
   - {fileID: 3680376337918313167}
   - {fileID: 2793399574356843444}
   - {fileID: 4057470810871669845}
+  - {fileID: 1350641528763209515}
+  - {fileID: 3840865647494407878}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &3460076834021440431
@@ -2834,6 +2895,8 @@ MonoBehaviour:
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   canRobColor: {r: 1, g: 0, b: 0, a: 1}
   playerCamera: {fileID: 2692074369058656737}
+  spectatorLayerName: Spectator
+  gameplayComponentsToDisable: []
 --- !u!114 &2270213130733425553
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2865,6 +2928,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d41b4a4e01366294dadbea058b99e7c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
   walkSpeed: 4
   runSpeed: 8
   jumpHeight: 1.5
@@ -2880,6 +2944,7 @@ MonoBehaviour:
   playerCamera: {fileID: 2692074369058656737}
   animator: {fileID: 5933013133862139051}
   useAnimations: 1
+  visualsRoot: {fileID: 0}
 --- !u!114 &1209354568462187854
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2951,6 +3016,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4879d7277c2a224689fb048f4cba022, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &2445913531024291430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6996942344717257674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c96b4da4b59ba5145823e98e577d09cd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spectatorPivot: {fileID: 1350641528763209515}
+  playerPivot: {fileID: 3840865647494407878}
+--- !u!114 &7714846785721943236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6996942344717257674}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70ef2d53425653b48b74d7e0e229dca3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  cameraPivot: {fileID: 1350641528763209515}
+  moveSpeed: 12
+  fastMultiplier: 2
+  verticalSpeed: 8
+  mouseSensitivity: 1.2
+  clampToBox: 1
+  minBounds: {x: -120, y: 10, z: -120}
+  maxBounds: {x: 120, y: 120, z: 120}
 --- !u!1 &7199430074716762054
 GameObject:
   m_ObjectHideFlags: 0

@@ -610,7 +610,7 @@ public class LanLobbyState : NetworkBehaviour
             }
         }
 
-        // Despawn non-winners' PlayerObjects but keep them connected and mark them eliminated
+        // --- MODIFICADO: En vez de Despawn, pasar a modo ESPECTADOR ---
         foreach (var clientId in nm.ConnectedClientsIds)
         {
             if (winners.Contains(clientId))
@@ -623,9 +623,9 @@ public class LanLobbyState : NetworkBehaviour
             {
                 try
                 {
-                    Debug.Log($"[LanLobbyState] Notifying and despawning PlayerObject for client {clientId} (lost round)");
+                    Debug.Log($"[LanLobbyState] Marking client {clientId} as eliminated -> spectator mode");
 
-                    // Notify the client that they are eliminated (will run only on that client)
+                    // Notificar al cliente que fue eliminado (OCULTA HUDs como respaldo)
                     try
                     {
                         var clientRpcParams = new ClientRpcParams
@@ -642,16 +642,27 @@ public class LanLobbyState : NetworkBehaviour
                         Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
                     }
 
-                    // Despawn and mark eliminated so they won't be included in next rounds
-                    po.Despawn(destroy: true);
+                    // Pasar a modo espectador (mantener objeto y conexión)
+                    var pr = po.GetComponent<PlayerRob>();
+                    if (pr != null)
+                    {
+                        pr.EnterSpectatorServer();
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[LanLobbyState] PlayerObject for client {clientId} has no PlayerRob; cannot enter spectator. (Keeping object alive)");
+                    }
+
+                    // Marcar eliminado para no re-spawnear en próximas rondas
                     eliminatedClients.Add(clientId);
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+                    Debug.LogWarning($"[LanLobbyState] Failed to switch client {clientId} to spectator: {e}");
                 }
             }
         }
+        // --- FIN MODIFICADO ---
 
         // Update network variables so clients know the timer stopped
         TimerActive.Value = false;
