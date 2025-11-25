@@ -351,4 +351,19 @@ public class PlayerRob : NetworkBehaviour
         }
         GUILayout.EndArea();
     }
+    //void OnGUI()
+    //{
+    //    if (!IsOwner) return;
+//
+    //    GUILayout.BeginArea(new Rect(10, 10, 300, 100));
+    //    GUILayout.Label($"HasCrown: {hasCrown.Value}");
+    //    GUILayout.Label($"Target: {(targetPlayer != null ? "SÍ" : "NO")}");
+    //    GUILayout.Label($"Camera: {(playerCamera != null ? "OK" : "NULL")}");
+    //    if (targetPlayer != null)
+    //    {
+    //        float dist = Vector3.Distance(transform.position, targetPlayer.transform.position);
+    //        GUILayout.Label($"Distancia: {dist:F2}m / {robDistance}m");
+    //    }
+    //    GUILayout.EndArea();
+    //}
 }
