@@ -47,6 +47,21 @@ public class PowerManager : MonoBehaviour
         // At start, clear all power slots
         ClearAllPowerSlots();
 
+        // Defensive fallback: if the inspector didn't assign a PowersHUD, try to find one in scene
+        if (powersHUD == null)
+        {
+            var found = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
+            if (found != null)
+            {
+                powersHUD = found;
+                Debug.Log($"[PowerManager] Auto-assigned PowersHUD from scene: '{found.gameObject.name}'");
+            }
+            else
+            {
+                Debug.LogWarning("[PowerManager] powersHUD reference is null and none found in scene. HUD updates will be skipped.");
+            }
+        }
+
         // No auto-collector: player pickup forwarding is handled externally or by adding PlayerPowerCollector manually.
     }
     
@@ -124,6 +139,9 @@ public class PowerManager : MonoBehaviour
                 // If still no icon from mapping, get default by powerType
                 if (powerIcon == null) powerIcon = GetPowerIcon(powerType, pickedPrefab);
 
+                // Debug: report mapping result before applying
+                Debug.Log($"[PowerManager] AddPower -> slot={i} clientPrefab={(pickedPrefab!=null?pickedPrefab.name:"null")} powerType={(powerType.HasValue?powerType.ToString():"null")} powerIcon={(powerIcon!=null?powerIcon.name:"null")} powersHUDAssigned={(powersHUD!=null)}");
+
                 powerTypeSlots[i] = powerType;
                 
                 // Assign the icon to the corresponding slot
@@ -131,6 +149,10 @@ public class PowerManager : MonoBehaviour
                 if (powersHUD != null)
                 {
                     powersHUD.SetSlotSprite(i, powerIcon);
+                }
+                else
+                {
+                    Debug.LogWarning($"[PowerManager] Tried to set slot sprite for slot {i} but powersHUD is null. powerIcon={(powerIcon!=null?powerIcon.name:"null")}.");
                 }
                 
                 Debug.Log($"Power {powerType} added to slot {i + 1}");
