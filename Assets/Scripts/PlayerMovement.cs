@@ -144,7 +144,6 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     {
         base.OnNetworkSpawn();
 
-        // Si esta instancia es la propietaria, habilitar entradas y suscribirse
         if (IsOwner)
         {
             inputActions.Enable();
@@ -156,11 +155,17 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             inputActions.Player.Sprint.performed += OnSprint;
             inputActions.Player.Sprint.canceled += OnSprint;
 
+            // 🔵 Inicializar PowerManager para jugador local
+            var powerManager = GetComponentInChildren<PowerManager>();
+            if (powerManager != null)
+                powerManager.InitializeForLocalPlayer(this);
+            else
+                Debug.LogWarning("[FirstPersonController] No se encontró PowerManager en hijos.");
         }
 
-        // Aplicar el estado de visibilidad para esta instancia (el propietario se oculta a sí mismo, los demás lo ven)
         UpdateLocalModelVisibility();
     }
+
 
     public override void OnNetworkDespawn()
     {
