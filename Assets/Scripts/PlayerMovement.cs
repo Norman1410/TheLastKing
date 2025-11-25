@@ -12,34 +12,34 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     [SerializeField] public float jumpHeight = 2f;
     [SerializeField] public float gravity = -9.81f;
     [SerializeField] public float gravityMultiplier = 1.0f;
-    
+
     [Header("Mouse Look Settings")]
     [SerializeField] private float mouseSensitivity = 2f; // Reducido para mejor control
     [SerializeField] private float maxLookAngle = 80f;
-    
+
     [Header("Ground Check Settings")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundDistance = 0.2f;
     [SerializeField] private LayerMask groundMask;
-    
+
     [Header("Camera Reference")]
     [SerializeField] private Camera playerCamera;
-    
+
     [Header("Animation")]
     [SerializeField] private Animator animator; // Referencia al Animator
     [SerializeField] private bool useAnimations = true; // Toggle para activar/desactivar animaciones
     [SerializeField] private Transform visualsRoot; // Root que contiene los meshes/visuals (asignar en el prefab)
 
-    
-    
+
+
     // Componentes
     private CharacterController controller;
     private PlayerInputActions inputActions;
     // Animator/network
     // Animator / red
     //private PlayerAnimatorSync animatorSync;
-    
-    
+
+
     // Variables de movimiento
     private Vector2 moveInput;
     private Vector3 velocity;
@@ -48,12 +48,12 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     private bool isMoving;
     private bool wasGrounded;
     private bool isJumping;
-    
+
     // Variables de rotación de la cámara
     private float xRotation = 0f;
     private float yRotation = 0f;
     private Vector2 lookInput;
-    
+
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -75,34 +75,36 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
 
         // Obtener componentes
         controller = GetComponent<CharacterController>();
-        
+
         // Si no se asignó un animator, intentar encontrarlo
         if (animator == null)
-        {   
+        {
             Debug.LogWarning("Animator not assigned! Trying to find one in children.");
             animator = GetComponent<Animator>();
             if (animator == null)
             {
                 animator = GetComponentInChildren<Animator>();
             }
-        }else {
+        }
+        else
+        {
             Debug.Log("Animator assigned via inspector.");
         }
-        
+
         // Crear y configurar las acciones de entrada
         inputActions = new PlayerInputActions();
-        
+
         // Bloquear el cursor en el centro de la pantalla
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        
+
         // Inicializar la rotación Y con la rotación actual del jugador
         yRotation = transform.eulerAngles.y;
 
         // Ajustar visibilidad del modelo para el propietario local
         //UpdateLocalModelVisibility();
     }
-    
+
     private void OnEnable()
     {
         // Si no se ejecuta con Netcode (modo single-player/Editor sin NetworkManager), habilitar entradas inmediatamente.
@@ -120,7 +122,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         // En caso contrario, la suscripción de entradas se realiza en OnNetworkSpawn() cuando se conozca la propiedad.
     }
 
-    
+
     private void OnDisable()
     {
         // Si es single-player o no hay Netcode, anular suscripción aquí
@@ -176,22 +178,22 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             inputActions.Disable();
         }
     }
-    
+
     private void Update()
     {
         // Realizar comprobación de suelo
         CheckGround();
-        
+
         // Gestionar movimiento
         HandleMovement();
-        
+
         // Gestionar la rotación de la cámara
         HandleMouseLook();
-        
+
         // Actualizar animaciones
         UpdateAnimations();
     }
-    
+
     private void CheckGround()
     {
         // Comprobar si estamos en el suelo usando una esfera
@@ -204,20 +206,20 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             // Alternativa: usar un raycast desde el centro del CharacterController
             isGrounded = Physics.Raycast(transform.position, Vector3.down, controller.bounds.extents.y + 0.1f, groundMask);
         }
-        
+
         // Depuración para ver el estado de la comprobación de suelo
         if (isGrounded != wasGrounded)
         {
             Debug.Log($"Ground State Changed: {isGrounded}");
             wasGrounded = isGrounded;
-            
+
             // Si acabamos de aterrizar, ya no estamos saltando
             if (isGrounded)
             {
                 isJumping = false;
             }
         }
-        
+
         // Reiniciar la velocidad de caída cuando estemos en el suelo
         if (isGrounded && velocity.y < 0)
         {
@@ -225,45 +227,45 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             isJumping = false;
         }
     }
-    
+
     private void HandleMovement()
-{
-    if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
-        return;
-
-    float currentSpeed = isRunning ? runSpeed : walkSpeed;
-    Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
-
-    // APLICACIÓN DE GRAVEDAD Y MOVIMIENTO LATERAL
-    velocity.y += (gravity * gravityMultiplier) * Time.deltaTime; 
-    
-    if (isGrounded && velocity.y < 0)
     {
-        velocity.y = -2f; 
+        if (controller == null || !controller.enabled || !controller.gameObject.activeInHierarchy)
+            return;
+
+        float currentSpeed = isRunning ? runSpeed : walkSpeed;
+        Vector3 move = transform.right * moveInput.x + transform.forward * moveInput.y;
+
+        // APLICACIÓN DE GRAVEDAD Y MOVIMIENTO LATERAL
+        velocity.y += (gravity * gravityMultiplier) * Time.deltaTime;
+
+        if (isGrounded && velocity.y < 0)
+        {
+            velocity.y = -2f;
+        }
+
+        isMoving = moveInput.magnitude > 0.1f;
+
+        Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
+        controller.Move(finalMovement * Time.deltaTime);
+
     }
-    
-    isMoving = moveInput.magnitude > 0.1f;
 
-    Vector3 finalMovement = (move * currentSpeed) + new Vector3(0f, velocity.y, 0f);
-    controller.Move(finalMovement * Time.deltaTime);
 
-}
-
-    
     private void HandleMouseLook()
     {
         // Calcular la rotación a partir de la entrada del ratón
         float mouseX = lookInput.x * mouseSensitivity;
         float mouseY = lookInput.y * mouseSensitivity;
-        
+
         // Rotar el cuerpo del jugador en el eje Y (rotación horizontal)
         yRotation += mouseX;
         transform.rotation = Quaternion.Euler(0f, yRotation, 0f);
-        
+
         // Rotar la cámara en el eje X (rotación vertical)
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -maxLookAngle, maxLookAngle);
-        
+
         // Aplicar la rotación de la cámara
         if (playerCamera != null)
         {
@@ -305,7 +307,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
                 AnimationNetworkManager.Instance.SubmitAnimationStateServerRpc(currentSpeed, forward, strafe, isJumping, isRunning, isGrounded);
             }
         }
-        
+
         //Debug.Log($"Animator Parameters -->");
         //if (animator.GetFloat("Speed") != 0) Debug.Log($" - Speed: {animator.GetFloat("Speed")}");
         //if (animator.GetFloat("Direction") != 0) Debug.Log($" - Direction: {animator.GetFloat("Direction")}");
@@ -315,22 +317,22 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     }
 
 
-    
+
     // Métodos de callback de entrada
     private void OnMove(InputAction.CallbackContext context)
     {
         moveInput = context.ReadValue<Vector2>();
     }
-    
+
     private void OnLook(InputAction.CallbackContext context)
     {
         lookInput = context.ReadValue<Vector2>();
     }
-    
+
     private void OnJump(InputAction.CallbackContext context)
     {
         Debug.Log($"Jump pressed! IsGrounded: {isGrounded}, GroundCheck assigned: {groundCheck != null}");
-        
+
         if (isGrounded && !isJumping)
         {
             // Calcular la velocidad de salto usando la fórmula física: v = sqrt(h * -2 * g)
@@ -340,12 +342,12 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             Debug.Log($"Jumping with velocity: {velocity.y}");
         }
     }
-    
+
     private void OnSprint(InputAction.CallbackContext context)
     {
         isRunning = context.performed;
     }
-    
+
     // Visualización de depuración
     private void OnDrawGizmosSelected()
     {
@@ -364,7 +366,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
             Gizmos.DrawLine(rayStart, rayEnd);
             Gizmos.DrawWireSphere(rayEnd, 0.1f);
         }
-        
+
 
 
         // Visualizar la dirección de la cámara
@@ -383,7 +385,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
     }
 
 
-    
+
     // Métodos públicos para obtener el estado (útiles para otros scripts)
     public bool IsGrounded() => isGrounded;
     public bool IsRunning() => isRunning;
@@ -411,7 +413,7 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
 
         Debug.Log($"External Launch Applied: {force}");
     }
-    
+
     // Getter y Setter públicos para walkSpeed
     public float GetWalkSpeed()
     {
@@ -478,6 +480,16 @@ public class FirstPersonController : Unity.Netcode.NetworkBehaviour
         // Additionally, toggle CanvasRenderer gameObjects if present under the visuals root
         var canvasRenderers = targetRoot.GetComponentsInChildren<CanvasRenderer>(true);
         foreach (var cr in canvasRenderers)
+        {
+            // NO ocultar HUDs (PowersHUD, CrownHUD, CrosshairUI)
+            if (cr.gameObject.name.Contains("HUD") ||
+                cr.gameObject.name.Contains("Power") ||
+                cr.gameObject.name.Contains("Crosshair") ||
+                cr.gameObject.name.Contains("Crown"))
+                continue;
+
             cr.gameObject.SetActive(!hide);
+        }
+
     }
 }
