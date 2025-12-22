@@ -30,6 +30,9 @@ public class LanLobbyState : NetworkBehaviour
     // Default changed to 60s (1 minute) per request
     private int lastRoundDurationSeconds = 60;
 
+    [Header("Falling elimination")]
+    [SerializeField] private float fallYThreshold = -15f;
+
     [Header("Gameplay Scene Name (leave current scene name to spawn in same scene)")]
     [SerializeField] string gameplaySceneName = "Game";
     // Devuelve el nombre de la escena de juego.
@@ -694,6 +697,48 @@ public class LanLobbyState : NetworkBehaviour
         StartCoroutine(StartNextRoundCoroutine(winnerPlayers));
     }
 
+    void EliminateClient(ulong clientId)
+    {
+        if (!IsServer || NetworkManager == null) return;
+
+        if (!NetworkManager.ConnectedClients.TryGetValue(clientId, out var cc))
+            return;
+
+        var po = cc.PlayerObject;
+        if (po == null || !po.IsSpawned)
+            return;
+
+        // Notificar al cliente que fue eliminado (entra en modo espectador / UI)
+        try
+        {
+            var clientRpcParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams
+                {
+                    TargetClientIds = new ulong[] { clientId }
+                }
+            };
+            NotifyEliminatedClientRpc(clientRpcParams);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[LanLobbyState] Failed to send elimination RPC to client {clientId}: {ex}");
+        }
+
+        // Despawn y marcar como eliminado para que no vuelva a spawnearse
+        try
+        {
+            po.Despawn(destroy: true);
+            eliminatedClients.Add(clientId);
+            Debug.Log($"[LanLobbyState] EliminateClient: client {clientId} eliminado por caída / lógica server.");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[LanLobbyState] Failed to despawn PlayerObject for client {clientId}: {e}");
+        }
+    }
+
+
     System.Collections.IEnumerator StartNextRoundCoroutine(List<PlayerRob> players)
     {
         // Short intermission
@@ -791,13 +836,41 @@ public class LanLobbyState : NetworkBehaviour
     }
 
     // Notify a specific client that they have been eliminated and should enter spectator mode
+    // Notify a specific client that they have been eliminated and should enter spectator mode
     [ClientRpc]
     void NotifyEliminatedClientRpc(ClientRpcParams rpcParams = default)
     {
-        // This runs on the client that was targeted
+        // Esto corre solo en el cliente objetivo
         Debug.Log("[LanLobbyState] You have been eliminated and are now a spectator.");
 
-        // Try to disable local input/components if any player object exists
+        // Mostrar pantalla de Game Over (usa WinnerUI y el sprite gameOverSprite si está asignado)
+        try
+        {
+            var t = System.Type.GetType("WinnerUI, Assembly-CSharp");
+            if (t != null)
+            {
+                var mi = t.GetMethod("Show", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                if (mi != null)
+                {
+                    // Segundo parámetro 'false' -> usa el sprite de game over en vez del de ganador
+                    mi.Invoke(null, new object[] { "GAME OVER", false });
+                }
+                else
+                {
+                    Debug.LogWarning("[LanLobbyState] WinnerUI.Show method not found via reflection (NotifyEliminatedClientRpc).");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[LanLobbyState] WinnerUI type not found via reflection (NotifyEliminatedClientRpc).");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[LanLobbyState] Could not display WinnerUI on elimination: " + e);
+        }
+
+        // Intentar deshabilitar input / movimiento y ocultar HUDs
         try
         {
             var nm = NetworkManager.Singleton;
@@ -807,17 +880,14 @@ public class LanLobbyState : NetworkBehaviour
                 var pr = po.GetComponent<PlayerRob>();
                 if (pr != null)
                 {
-                    // disable input components if present
                     var pi = po.GetComponent<UnityEngine.InputSystem.PlayerInput>();
                     if (pi != null) pi.enabled = false;
 
                     var pm = po.GetComponent<PlayerMovement>();
                     if (pm != null) pm.enabled = false;
 
-                    // Hide local HUD elements that should not be visible to eliminated players
                     try
                     {
-                        // Hide crown HUD (keeps timer alone)
                         var crownHud = UnityEngine.Object.FindAnyObjectByType<CrownHud>();
                         if (crownHud != null)
                         {
@@ -825,7 +895,6 @@ public class LanLobbyState : NetworkBehaviour
                             Debug.Log("[LanLobbyState] CrownHud hidden for eliminated client.");
                         }
 
-                        // Hide powers HUD
                         var powersHud = UnityEngine.Object.FindAnyObjectByType<PowersHUD>();
                         if (powersHud != null)
                         {
@@ -838,9 +907,6 @@ public class LanLobbyState : NetworkBehaviour
                         Debug.LogWarning("[LanLobbyState] Failed to hide HUDs for eliminated client: " + exHud);
                     }
                 }
-
-                // Destroy local player object if present (server will despawn it too)
-                // But avoid double-destroy; the server will call despawn.
             }
         }
         catch (System.Exception e)
@@ -978,6 +1044,12 @@ public class LanLobbyState : NetworkBehaviour
                     }
                     Debug.Log(s);
                 }
+
+                // 🔥 Además del log, revisamos si alguien se cayó del mapa
+                if (GameStarted.Value)
+                {
+                    CheckForFallenPlayers();
+                }
             }
             catch (System.Exception e)
             {
@@ -987,6 +1059,112 @@ public class LanLobbyState : NetworkBehaviour
             yield return new WaitForSeconds(interval);
         }
     }
+
+    void CheckForFallenPlayers()
+    {
+        if (!IsServer || NetworkManager == null) return;
+
+        var nm = NetworkManager;
+        var toEliminate = new List<ulong>();
+
+        // 1) Detectar qué clientes se han caído
+        foreach (var clientId in nm.ConnectedClientsIds)
+        {
+            if (eliminatedClients.Contains(clientId))
+                continue;
+
+            if (!nm.ConnectedClients.TryGetValue(clientId, out var cc))
+                continue;
+
+            var po = cc.PlayerObject;
+            if (po == null || !po.IsSpawned)
+                continue;
+
+            float y = po.transform.position.y;
+            if (y < fallYThreshold)
+            {
+                Debug.Log($"[LanLobbyState] Client {clientId} se cayó del mapa (y={y}).");
+                toEliminate.Add(clientId);
+            }
+        }
+
+        if (toEliminate.Count == 0)
+            return;
+
+        // 2) Construir lista de candidatos vivos para recibir la corona
+        var candidates = new List<PlayerRob>();
+        foreach (var clientId in nm.ConnectedClientsIds)
+        {
+            if (toEliminate.Contains(clientId))
+                continue;
+            if (eliminatedClients.Contains(clientId))
+                continue;
+
+            if (!nm.ConnectedClients.TryGetValue(clientId, out var cc))
+                continue;
+
+            var po = cc.PlayerObject;
+            if (po == null || !po.IsSpawned)
+                continue;
+
+            var pr = po.GetComponent<PlayerRob>();
+            if (pr != null)
+                candidates.Add(pr);
+        }
+
+        // 3) Procesar cada jugador que se cayó
+        foreach (var clientId in toEliminate)
+        {
+            HandleFallenPlayer(clientId, candidates);
+        }
+    }
+
+    void HandleFallenPlayer(ulong clientId, List<PlayerRob> aliveCandidates)
+    {
+        var nm = NetworkManager;
+        if (nm == null) return;
+
+        if (!nm.ConnectedClients.TryGetValue(clientId, out var cc))
+            return;
+
+        var po = cc.PlayerObject;
+        if (po == null || !po.IsSpawned)
+            return;
+
+        var fallenPlayer = po.GetComponent<PlayerRob>();
+        if (fallenPlayer == null)
+        {
+            EliminateClient(clientId);
+            return;
+        }
+
+        bool hadCrown = fallenPlayer.HasCrown();
+        if (hadCrown)
+        {
+            fallenPlayer.SetCrownDirect(false);
+
+            // Elegir un candidato aleatorio (si hay)
+            if (aliveCandidates != null && aliveCandidates.Count > 0)
+            {
+                int index = Random.Range(0, aliveCandidates.Count);
+                var receiver = aliveCandidates[index];
+
+                if (receiver != null)
+                {
+                    receiver.SetCrownDirect(true);
+                    Debug.Log($"[LanLobbyState] Corona transferida de client {clientId} a {receiver.gameObject.name} por caída del mapa.");
+                }
+            }
+            else
+            {
+                Debug.Log("[LanLobbyState] No hay candidatos vivos para recibir la corona al caer un jugador.");
+            }
+        }
+
+        // Finalmente, eliminar al jugador que cayó
+        EliminateClient(clientId);
+    }
+
 
     void SpawnAllPlayersNow()
     {
